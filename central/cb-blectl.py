@@ -47,39 +47,64 @@ log = Log()
 
 class CapBotUuid(StrEnum):
     service = normalize_uuid_32(0x00000030)  # CapBot control service
-    drive = normalize_uuid_32(0x00000031)    # Drive characteristic
-    speed = normalize_uuid_32(0x00000032)    # Motor speed characteristic
-    angle = normalize_uuid_32(0x00000033)    # Motor angle characteristic
-    voltage = normalize_uuid_32(0x00000034)  # Capacitor voltage characteristic
+    drive = normalize_uuid_32(0x00000031)  # Drive characteristic
+    speed = normalize_uuid_32(0x00000032)  # Motor speed characteristic
+    angle = normalize_uuid_32(0x00000033)  # Motor angle characteristic
+    vcap = normalize_uuid_32(0x00000034)  # Capacitor voltage characteristic
+
+
+class CapBotMotors:
+    """
+    Structure to hold an integer for each motor
+    """
+    front_left: int
+    front_right: int
+    back_left: int
+    back_right: int
+
+    def __init__(self, fl: int, fr: int, bl: int, br: int):
+        self.front_left = fl
+        self.front_right = fr
+        self.back_left = bl
+        self.back_right = br
+
+    def __str__(self) -> str:
+        return f"{{front_left: {self.front_left}, front_right: {self.front_right}, back_left: {self.back_left}, back_right: {self.back_right}}}"
 
 
 class CapBotSensors:
     """
     Structure to hold a robot's sensor values
     """
-    _address: str
-    _voltage: float
-    _angles: Dict[str, int]
-    _speeds: Dict[str, int]
+
+    address: str
+    voltage: float
+    angles: CapBotMotors
+    speeds: CapBotMotors
 
     def __init__(self, address: str):
-        self._address = address
-        self._voltage = 0
-        self._angles = {}
-        self._speeds = {}
+        self.address = address
+        self.voltage = 0
+        self.angles = CapBotMotors(0, 0, 0, 0)
+        self.speeds = CapBotMotors(0, 0, 0, 0)
 
     def __str__(self) -> str:
-        return f"Robot: {self._address}:\n\tVcap: {self.voltage()}V"
-
-    def voltage(self) -> float:
-        return self._voltage
+        return f"Robot: {self.address}:\n\tVcap: {self.voltage}V\n\tSpeeds: {self.speeds}\n\tAngles: {self.angles}"
 
     def set_voltage(self, v: float) -> None:
-        self._voltage = v
+        self.voltage = v
+
+    def set_angles(self, a: CapBotMotors) -> None:
+        self.angles = a
+
+    def set_speeds(self, s: CapBotMotors) -> None:
+        self.speeds = s
 
 
 async def scan() -> List[BLEDevice]:
-    devices: List[BLEDevice] = await BleakScanner(service_uuids=[CapBotUuid.service]).discover(timeout=5)
+    devices: List[BLEDevice] = await BleakScanner(
+        service_uuids=[CapBotUuid.service]
+    ).discover(timeout=5)
     bots: List[BLEDevice] = []
     for device in devices:
         log.info(f"Found device: {device.address} - {device.name}")
@@ -89,7 +114,9 @@ async def scan() -> List[BLEDevice]:
 
 
 async def find(addr: str) -> Optional[BLEDevice]:
-    device = await BleakScanner(service_uuids=[CapBotUuid.service]).find_device_by_address(addr, timeout=5)
+    device = await BleakScanner(
+        service_uuids=[CapBotUuid.service]
+    ).find_device_by_address(addr, timeout=5)
     if device is not None and await is_robot(device):
         return device
     else:
@@ -115,22 +142,35 @@ async def connect(device: BLEDevice) -> BleakClient:
 async def read_voltage(client: BleakClient) -> float:
     if not client.is_connected:
         await client.connect()
-    raw = await client.read_gatt_char(CapBotUuid.voltage)
-    return int.from_bytes(raw, 'little') / 1000.0
+    raw = await client.read_gatt_char(CapBotUuid.vcap)
+    return int.from_bytes(raw, "little") / 1000.0
 
 
-async def read_angle(client: BleakClient) -> Tuple[int, int, int, int]:
+async def read_angle(client: BleakClient) -> CapBotMotors:
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.angle)
-    return (int(raw[0]), int(raw[1]), int(raw[2]), int(raw[3]))
+    dat = CapBotMotors(
+        fl=int.from_bytes(raw[0:4], "little", signed=True),
+        fr=int.from_bytes(raw[4:8], "little", signed=True),
+        bl=int.from_bytes(raw[8:12], "little", signed=True),
+        br=int.from_bytes(raw[12:16], "little", signed=True),
+    )
+    return dat
 
 
-async def read_speed(client: BleakClient) -> Tuple[int, int, int, int]:
+async def read_speed(client: BleakClient) -> CapBotMotors:
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.speed)
-    return (int(raw[0]), int(raw[1]), int(raw[2]), int(raw[3]))
+    dat = CapBotMotors(
+        fl=int.from_bytes(raw[0:4], "little", signed=True),
+        fr=int.from_bytes(raw[4:8], "little", signed=True),
+        bl=int.from_bytes(raw[8:12], "little", signed=True),
+        br=int.from_bytes(raw[12:16], "little", signed=True),
+    )
+    return dat
+
 
 # -------------------------------------------------------------------------- #
 #                           Command Line Interface                           #
@@ -159,6 +199,7 @@ def cli_sense(addr: str | None) -> None:
     """
     # Read the different sensors on the robot
     """
+
     async def sense(addr: Optional[str]) -> Optional[CapBotSensors]:
         # Determine robot device
         if addr is not None:
@@ -177,15 +218,12 @@ def cli_sense(addr: str | None) -> None:
             client = await connect(robot)
             sensed = CapBotSensors(client.address)
             sensed.set_voltage(await read_voltage(client))
+            sensed.set_angles(await read_angle(client))
+            sensed.set_speeds(await read_speed(client))
             return sensed
-
-            # TODO: update speed and angle in sensed
-            speeds = await read_speed(client)
-            angles = await read_angle(client)
-
         else:
             log.error("No suitable robots found")
-            exit(1)
+            return None
 
     sensors = asyncio.run(sense(addr))
 
