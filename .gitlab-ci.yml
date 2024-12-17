@@ -1,2 +1,7 @@
 default:
     image: python:latest
+
+mypy:
+    stage: test
+    script:
+        - mypy ./central/*.py
