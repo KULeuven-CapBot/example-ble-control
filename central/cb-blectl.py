@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
 import asyncio
-from typing import List, Dict, Optional, Tuple, assert_never
-from argparse import ArgumentParser, Namespace
+import sys
+
+from typing import List, NoReturn, Optional, assert_never
 from enum import StrEnum
+
+from argparse import ArgumentParser, Namespace
 
 from bleak import BleakScanner, BleakClient
 from bleak.backends.device import BLEDevice
@@ -46,30 +49,33 @@ log = Log()
 
 
 class CapBotUuid(StrEnum):
-    service = normalize_uuid_32(0x00000030)  # CapBot control service
-    drive = normalize_uuid_32(0x00000031)  # Drive characteristic
-    speed = normalize_uuid_32(0x00000032)  # Motor speed characteristic
-    angle = normalize_uuid_32(0x00000033)  # Motor angle characteristic
-    vcap = normalize_uuid_32(0x00000034)  # Capacitor voltage characteristic
+    SERVICE = normalize_uuid_32(0x00000030)  # CapBot control service
+    DRIVE = normalize_uuid_32(0x00000031)  # Drive characteristic
+    SPEED = normalize_uuid_32(0x00000032)  # Motor speed characteristic
+    ANGLE = normalize_uuid_32(0x00000033)  # Motor angle characteristic
+    VCAP = normalize_uuid_32(0x00000034)  # Capacitor voltage characteristic
 
 
 class CapBotMotors:
     """
     Structure to hold an integer for each motor
     """
-    front_left: int
-    front_right: int
-    back_left: int
-    back_right: int
 
     def __init__(self, fl: int, fr: int, bl: int, br: int):
-        self.front_left = fl
-        self.front_right = fr
-        self.back_left = bl
-        self.back_right = br
+        self.front_left: int = fl
+        self.front_right: int = fr
+        self.back_left: int = bl
+        self.back_right: int = br
 
     def __str__(self) -> str:
-        return f"{{front_left: {self.front_left}, front_right: {self.front_right}, back_left: {self.back_left}, back_right: {self.back_right}}}"
+        return (
+            "{"
+            f"front_left: {self.front_left}, "
+            f"front_right: {self.front_right}, "
+            f"back_left: {self.back_left}, "
+            f"back_right: {self.back_right}"
+            "}"
+        )
 
 
 class CapBotSensors:
@@ -77,19 +83,19 @@ class CapBotSensors:
     Structure to hold a robot's sensor values
     """
 
-    address: str
-    voltage: float
-    angles: CapBotMotors
-    speeds: CapBotMotors
-
     def __init__(self, address: str):
-        self.address = address
-        self.voltage = 0
-        self.angles = CapBotMotors(0, 0, 0, 0)
-        self.speeds = CapBotMotors(0, 0, 0, 0)
+        self.address: str = address
+        self.voltage: float = 0
+        self.angles: CapBotMotors = CapBotMotors(0, 0, 0, 0)
+        self.speeds: CapBotMotors = CapBotMotors(0, 0, 0, 0)
 
     def __str__(self) -> str:
-        return f"Robot: {self.address}:\n\tVcap: {self.voltage}V\n\tSpeeds: {self.speeds}\n\tAngles: {self.angles}"
+        return (
+            f"Robot: {self.address}:\n"
+            f"\tVcap: {self.voltage}V\n"
+            f"\tSpeeds: {self.speeds}\n"
+            f"\tAngles: {self.angles}"
+        )
 
     def set_voltage(self, v: float) -> None:
         self.voltage = v
@@ -103,7 +109,7 @@ class CapBotSensors:
 
 async def scan() -> List[BLEDevice]:
     devices: List[BLEDevice] = await BleakScanner(
-        service_uuids=[CapBotUuid.service]
+        service_uuids=[CapBotUuid.SERVICE]
     ).discover(timeout=5)
     bots: List[BLEDevice] = []
     for device in devices:
@@ -115,16 +121,15 @@ async def scan() -> List[BLEDevice]:
 
 async def find(addr: str) -> Optional[BLEDevice]:
     device = await BleakScanner(
-        service_uuids=[CapBotUuid.service]
+        service_uuids=[CapBotUuid.SERVICE]
     ).find_device_by_address(addr, timeout=5)
     if device is not None and await is_robot(device):
         return device
-    else:
-        return None
+    return None
 
 
 async def is_robot(device: BLEDevice) -> bool:
-    return CapBotUuid.service in device.details["props"]["UUIDs"]
+    return CapBotUuid.SERVICE in device.details["props"]["UUIDs"]
 
 
 async def connect(device: BLEDevice) -> BleakClient:
@@ -142,14 +147,14 @@ async def connect(device: BLEDevice) -> BleakClient:
 async def read_voltage(client: BleakClient) -> float:
     if not client.is_connected:
         await client.connect()
-    raw = await client.read_gatt_char(CapBotUuid.vcap)
+    raw = await client.read_gatt_char(CapBotUuid.VCAP)
     return int.from_bytes(raw, "little") / 1000.0
 
 
 async def read_angle(client: BleakClient) -> CapBotMotors:
     if not client.is_connected:
         await client.connect()
-    raw = await client.read_gatt_char(CapBotUuid.angle)
+    raw = await client.read_gatt_char(CapBotUuid.ANGLE)
     dat = CapBotMotors(
         fl=int.from_bytes(raw[0:4], "little", signed=True),
         fr=int.from_bytes(raw[4:8], "little", signed=True),
@@ -162,7 +167,7 @@ async def read_angle(client: BleakClient) -> CapBotMotors:
 async def read_speed(client: BleakClient) -> CapBotMotors:
     if not client.is_connected:
         await client.connect()
-    raw = await client.read_gatt_char(CapBotUuid.speed)
+    raw = await client.read_gatt_char(CapBotUuid.SPEED)
     dat = CapBotMotors(
         fl=int.from_bytes(raw[0:4], "little", signed=True),
         fr=int.from_bytes(raw[4:8], "little", signed=True),
@@ -172,30 +177,38 @@ async def read_speed(client: BleakClient) -> CapBotMotors:
     return dat
 
 
+async def set_motors(client: BleakClient) -> None:
+    if not client.is_connected:
+        await client.connect()
+    # Modify GATT service to accept 4-wheel individual drive
+    await client.write_gatt_char(CapBotUuid.DRIVE, b"\x02", False)
+
+
 # -------------------------------------------------------------------------- #
 #                           Command Line Interface                           #
 # -------------------------------------------------------------------------- #
 
 
-def cli_scan() -> None:
+def cli_scan() -> NoReturn:
     """
     # Scan for available robots
 
-    Scans for available BLE devices, filter out robots and print their address to stdout
+    Scans for available BLE devices, filter out robots and print their address
+    to stdout
     """
     bots = asyncio.run(scan())
 
     if len(bots) == 0:
-        log.print(f"No robots found")
-        exit(1)
+        log.print("No robots found")
+        sys.exit(1)
     else:
         log.print("Found robots:")
         for bot in bots:
             log.print(f"\t{bot.address}")
-        exit(0)
+        sys.exit(0)
 
 
-def cli_sense(addr: str | None) -> None:
+def cli_sense(addr: Optional[str]) -> NoReturn:
     """
     # Read the different sensors on the robot
     """
@@ -221,43 +234,65 @@ def cli_sense(addr: str | None) -> None:
             sensed.set_angles(await read_angle(client))
             sensed.set_speeds(await read_speed(client))
             return sensed
-        else:
-            log.error("No suitable robots found")
-            return None
+
+        log.error("No suitable robots found")
+        return None
 
     sensors = asyncio.run(sense(addr))
 
     if sensors is not None:
         log.print(str(sensors))
-        exit(0)
+        sys.exit(0)
     else:
-        exit(1)
+        sys.exit(1)
 
 
-def cli_drive(addr: str | None) -> None:
+def cli_drive(addr: Optional[str]) -> NoReturn:
     """
     # Drive a given robot
     """
-    raise NotImplementedError
+
+    async def drive(addr: Optional[str]) -> None:
+        # Determine robot device
+        if addr is not None:
+            # Search for bot with given address
+            robot = await find(addr)
+        else:
+            # Use first bot in scan result
+            log.info("No address specified, scanning for available robots...")
+            devices = await scan()
+            if len(devices) == 0:
+                robot = None
+            else:
+                robot = devices[0]
+
+        if robot is not None:
+            client = await connect(robot)
+            await set_motors(client)
+        else:
+            log.error("No suitable robots found")
+
+    asyncio.run(drive(addr))
+    sys.exit(0)
 
 
 class Command(StrEnum):
-    Scan = "scan"
-    Drive = "drive"
-    Sense = "sense"
+    SCAN = "scan"
+    DRIVE = "drive"
+    SENSE = "sense"
 
-    def exec(this, args: Namespace) -> None:
+    def exec(self, args: Namespace) -> None:
         log.enable_info(args.verbose)
-        match this:
-            case Command.Scan:
+        match self:
+            case Command.SCAN:
                 if args.address is not None:
-                    log.warn(f"Address argument is unused for scan subcommand")
+                    log.warn("Address argument is unused for scan subcommand")
                 cli_scan()
-            case Command.Drive:
+            case Command.DRIVE:
                 cli_drive(args.address)
-            case Command.Sense:
+            case Command.SENSE:
                 cli_sense(args.address)
-            case unknown:  # Default case: matches everything not specified above
+            case unknown:  # Default: matches everything not specified above
                 assert_never(unknown)
 
 

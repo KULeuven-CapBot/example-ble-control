@@ -4,7 +4,17 @@ default:
 mypy:
     stage: test
     before_script:
-        - pip install mypy
+        - python -m pip install --upgrade pip
         - pip install -r requirements.txt
+        - pip install mypy
     script:
-        - mypy ./central/*.py
+        - mypy $(git ls-files '*.py')
+
+pylint:
+    stage: test
+    before_script:
+        - python -m pip install --upgrade pip
+        - pip install -r requirements.txt
+        - pip install pylint
+    script:
+        - pylint $(git ls-files '*.py')

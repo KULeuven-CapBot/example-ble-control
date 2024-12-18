@@ -1,4 +1,77 @@
 [tool.mypy]
 strict = true
+
 ignore_missing_imports = true
 
+warn_no_return = true
+warn_unreachable = true
+
+[tool.pylint.main]
+
+# Use multiple processes to speed up Pylint. Specifying 0 will auto-detect the
+# number of processors available to use, and will cap the count on Windows to
+# avoid hangs.
+jobs = 0
+
+# When enabled, pylint would attempt to guess common misconfiguration and emit
+# user-friendly hints instead of false-positive error messages.
+suggestion-mode = true
+
+[tool.pylint.basic]
+
+# Good variable names which should always be accepted, separated by a comma.
+good-names = ["i", "j", "k", "_"]
+
+# Bad variable names which should always be refused, separated by a comma.
+bad-names = ["foo", "bar", "baz", "toto", "tutu", "tata"]
+
+# Naming style matching correct argument names.
+argument-naming-style = "snake_case"
+
+# Naming style matching correct attribute names.
+attr-naming-style = "snake_case"
+
+# Naming style matching correct class attribute names.
+class-attribute-naming-style = "PascalCase"
+
+# Naming style matching correct class constant names.
+class-const-naming-style = "UPPER_CASE"
+
+# Naming style matching correct class names.
+class-naming-style = "PascalCase"
+
+# Naming style matching correct constant names.
+const-naming-style = "UPPER_CASE"
+
+# Naming style matching correct function names.
+function-naming-style = "snake_case"
+
+# Naming style matching correct method names.
+method-naming-style = "snake_case"
+
+# Naming style matching correct module names.
+module-naming-style = "snake_case"
+
+# Naming style matching correct variable names.
+variable-naming-style = "snake_case"
+
+[tool.pylint.format]
+# Expected format of line ending, e.g. empty (any line ending), LF or CRLF.
+expected-line-ending-format = "LF"
+
+# Number of spaces of indent required inside a hanging or continued line.
+indent-after-paren = 4
+
+# String used as indentation unit. This is usually "    " or "\t".
+indent-string = "    "
+
+# Maximum number of characters on a single line.
+max-line-length = 79
+
+[tool.pylint.miscellaneous]
+# List of note tags to take in consideration, separated by a comma.
+notes = ["FIXME", "BUG", "TODO"]
+
+[tool.pylint.imports]
+# Force import order to recognize a module as part of a third party library.
+known-third-party = ["bleak.*"]

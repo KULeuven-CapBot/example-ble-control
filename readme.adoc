@@ -1,14 +1,14 @@
 = CapBot control using Bluetooth Low Energy
-:toc: right
+:toc: left
 :icons: font
 :lang: en
 
-WARNING: This is currently a work in progress
+WARNING: This is currently a *work in progress*, it's by no means finished nor stable.
 
-This repo exists out of two main parts:
+This repo can be divided in two main parts:
 
-* CapBot firmware that exposes a GATT server (i.e. the link:./peripheral/[peripheral])
-* A client program that connects to this server (i.e. the link:./central/[central])
+* CapBot firmware that exposes a GATT server (i.e. the BLE link:./peripheral/[peripheral])
+* A python program that connects to this GATT server (i.e. the BLE link:./central/[central])
 
 == Robot Control Service
 
@@ -18,42 +18,91 @@ This service has UUID `00000030-0000-1000-8000-00805f9b34fb` and supports the fo
 .Characteristics of our robot control service (RCS)
 [options=header, cols="1,3a"]
 |===
-| Name  | UUID
+| Name  | Characteristic UUID
 | Drive | `00000031-0000-1000-8000-00805f9b34fb`
 | Speed | `00000032-0000-1000-8000-00805f9b34fb`
 | Angle | `00000033-0000-1000-8000-00805f9b34fb`
 | Vcap  | `00000034-0000-1000-8000-00805f9b34fb`
 |===
 
-.Formats of RCS's characteristics
-[cols="2, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1]
+=== Drive
+
+.Format of drive characteristic
+[cols="2, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1"]
 |===
 | | 0 | | | | 4 | | | | 8 | | | | 12 | | |
 
-| *Drive*
-4+^a| `front left`
-4+^a| `front right`
-4+^a| `back left`
-4+^a| `back right`
-
-| *Speed*
-4+^a| `front left`
-4+^a| `front right`
-4+^a| `back left`
-4+^a| `back right`
-
-| *Angle*
-4+^a| `front left`
-4+^a| `front right`
-4+^a| `back left`
-4+^a| `back right`
-
-| *Vcap*
-2+^a| `voltage`
-14+^a|/
+s| Drive
+^m| FL
+^m| FR
+^m| BL
+^m| BR
+4+^m| DUR
+8+^m| /
 |===
 
+* `FL`: Target speed (RPM) for Front Left motor
+* `FR`: Target speed (RPM) for Front Right motor
+* `BL`: Target speed (RPM) for Back Left motor
+* `BR`: Target speed (RPM) for Back Right motor
+* `DUR`: The amount of milliseconds to keep these target speeds before stopping again
+
+=== Speed
+
+.Format of speed characteristic
+[cols="2, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1"]
+|===
+| | 0 | | | | 4 | | | | 8 | | | | 12 | | |
+
+s| Speed
+^m| FL
+^m| FR
+^m| BL
+^m| BR
+12+^m| /
+|===
+
+* `FL`: Measured speed (RPM) of Front Left motor
+* `FR`: Measured speed (RPM) of Front Right motor
+* `BL`: Measured speed (RPM) of Back Left motor
+* `BR`: Measured speed (RPM) of Back Right motor
+
+=== Angle
+
+.Format of angle characteristic
+[cols="2, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1"]
+|===
+| | 0 | | | | 4 | | | | 8 | | | | 12 | | |
+
+s| Angle
+4+^m| FL
+4+^m| FR
+4+^m| BL
+4+^m| BR
+|===
+
+* `FL`: Measured angle (°) of Front Left motor
+* `FR`: Measured angle (°) of Front Right motor
+* `BL`: Measured angle (°) of Back Left motor
+* `BR`: Measured angle (°) of Back Right motor
+
+=== Vcap
+
+.Format of Vcap characteristic
+[cols="2, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1"]
+|===
+| | 0 | | | | 4 | | | | 8 | | | | 12 | | |
+
+s| Vcap
+2+^m| VOLT
+14+^|/
+|===
+
+* `VOLT`: Capacitor voltage (mV)
+
 == Python client
+
+TODO
 
 == Firmware
 
