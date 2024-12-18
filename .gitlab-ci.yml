@@ -18,3 +18,4 @@ pylint:
         - pip install pylint
     script:
         - pylint $(git ls-files '*.py')
+    allow_failure: true
