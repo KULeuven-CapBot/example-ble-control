@@ -19,25 +19,30 @@ from bleak.exc import BleakDeviceNotFoundError
 
 
 class Log:
-    _info: bool
+    """Rudimentary logging"""
 
     def __init__(self) -> None:
         self._info = False
 
     def enable_info(self, en: bool) -> None:
+        """Enable printing info to stdout"""
         self._info = en
 
     def info(self, msg: str) -> None:
+        """Log info message"""
         if self._info:
             print(f"[INFO] {msg}")
 
     def warn(self, msg: str) -> None:
+        """Log warning"""
         print(f"[WARNING] {msg}")
 
     def error(self, msg: str) -> None:
+        """Log error"""
         print(f"[ERROR] {msg}")
 
     def print(self, msg: str) -> None:
+        """Unconditionally log an arbitrary message"""
         print(msg)
 
 
@@ -49,7 +54,9 @@ log = Log()
 
 
 class CapBotUuid(StrEnum):
-    SERVICE = normalize_uuid_32(0x00000030)  # CapBot control service
+    """Enum with different UUIDs for our "Robot Control Service" """
+
+    SERVICE = normalize_uuid_32(0x00000030)  # Robot Control Service
     DRIVE = normalize_uuid_32(0x00000031)  # Drive characteristic
     SPEED = normalize_uuid_32(0x00000032)  # Motor speed characteristic
     ANGLE = normalize_uuid_32(0x00000033)  # Motor angle characteristic
@@ -57,17 +64,21 @@ class CapBotUuid(StrEnum):
 
 
 class CapBotMotors:
-    """
-    Structure to hold an integer for each motor
-    """
+    """Structure to hold an integer for each motor"""
 
-    def __init__(self, fl: int, fr: int, bl: int, br: int):
-        self.front_left: int = fl
-        self.front_right: int = fr
-        self.back_left: int = bl
-        self.back_right: int = br
+    def __init__(
+        self,
+        front_left: int,
+        front_right: int,
+        back_left: int,
+        back_right: int
+    ):
+        self.front_left: int = front_left
+        self.front_right: int = front_right
+        self.back_left: int = back_left
+        self.back_right: int = back_right
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return (
             "{"
             f"front_left: {self.front_left}, "
@@ -79,9 +90,7 @@ class CapBotMotors:
 
 
 class CapBotSensors:
-    """
-    Structure to hold a robot's sensor values
-    """
+    """Structure to hold a robot's sensor values"""
 
     def __init__(self, address: str):
         self.address: str = address
@@ -89,7 +98,7 @@ class CapBotSensors:
         self.angles: CapBotMotors = CapBotMotors(0, 0, 0, 0)
         self.speeds: CapBotMotors = CapBotMotors(0, 0, 0, 0)
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return (
             f"Robot: {self.address}:\n"
             f"\tVcap: {self.voltage}V\n"
@@ -97,17 +106,9 @@ class CapBotSensors:
             f"\tAngles: {self.angles}"
         )
 
-    def set_voltage(self, v: float) -> None:
-        self.voltage = v
-
-    def set_angles(self, a: CapBotMotors) -> None:
-        self.angles = a
-
-    def set_speeds(self, s: CapBotMotors) -> None:
-        self.speeds = s
-
 
 async def scan() -> List[BLEDevice]:
+    """Scan for BLE devices and filter out robots"""
     devices: List[BLEDevice] = await BleakScanner(
         service_uuids=[CapBotUuid.SERVICE]
     ).discover(timeout=5)
@@ -120,6 +121,7 @@ async def scan() -> List[BLEDevice]:
 
 
 async def find(addr: str) -> Optional[BLEDevice]:
+    """Search for a robot with given address"""
     device = await BleakScanner(
         service_uuids=[CapBotUuid.SERVICE]
     ).find_device_by_address(addr, timeout=5)
@@ -129,10 +131,12 @@ async def find(addr: str) -> Optional[BLEDevice]:
 
 
 async def is_robot(device: BLEDevice) -> bool:
+    """Determine if a device is a robot"""
     return CapBotUuid.SERVICE in device.details["props"]["UUIDs"]
 
 
 async def connect(device: BLEDevice) -> BleakClient:
+    """Connect to the given device"""
     client = BleakClient(device, timeout=5)
     log.info(f"Connecting to bot: {device.address}")
     try:
@@ -145,6 +149,7 @@ async def connect(device: BLEDevice) -> BleakClient:
 
 
 async def read_voltage(client: BleakClient) -> float:
+    """Read the robot's capacitor voltage"""
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.VCAP)
@@ -152,35 +157,39 @@ async def read_voltage(client: BleakClient) -> float:
 
 
 async def read_angle(client: BleakClient) -> CapBotMotors:
+    """Get the angle of the robot's wheels"""
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.ANGLE)
     dat = CapBotMotors(
-        fl=int.from_bytes(raw[0:4], "little", signed=True),
-        fr=int.from_bytes(raw[4:8], "little", signed=True),
-        bl=int.from_bytes(raw[8:12], "little", signed=True),
-        br=int.from_bytes(raw[12:16], "little", signed=True),
+        front_left=int.from_bytes(raw[0:4], "little", signed=True),
+        front_right=int.from_bytes(raw[4:8], "little", signed=True),
+        back_left=int.from_bytes(raw[8:12], "little", signed=True),
+        back_right=int.from_bytes(raw[12:16], "little", signed=True),
     )
     return dat
 
 
 async def read_speed(client: BleakClient) -> CapBotMotors:
+    """Get the speed of the robot's wheels"""
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.SPEED)
+    # FIXME: Update according to RCS spec in readme
     dat = CapBotMotors(
-        fl=int.from_bytes(raw[0:4], "little", signed=True),
-        fr=int.from_bytes(raw[4:8], "little", signed=True),
-        bl=int.from_bytes(raw[8:12], "little", signed=True),
-        br=int.from_bytes(raw[12:16], "little", signed=True),
+        front_left=int.from_bytes(raw[0:4], "little", signed=True),
+        front_right=int.from_bytes(raw[4:8], "little", signed=True),
+        back_left=int.from_bytes(raw[8:12], "little", signed=True),
+        back_right=int.from_bytes(raw[12:16], "little", signed=True),
     )
     return dat
 
 
 async def set_motors(client: BleakClient) -> None:
+    """Set the target speed of the robot's wheels"""
     if not client.is_connected:
         await client.connect()
-    # Modify GATT service to accept 4-wheel individual drive
+    # FIXME: Update according to RCS spec in readme
     await client.write_gatt_char(CapBotUuid.DRIVE, b"\x02", False)
 
 
@@ -230,9 +239,9 @@ def cli_sense(addr: Optional[str]) -> NoReturn:
         if robot is not None:
             client = await connect(robot)
             sensed = CapBotSensors(client.address)
-            sensed.set_voltage(await read_voltage(client))
-            sensed.set_angles(await read_angle(client))
-            sensed.set_speeds(await read_speed(client))
+            sensed.voltage = await read_voltage(client)
+            sensed.angles = await read_angle(client)
+            sensed.speeds = await read_speed(client)
             return sensed
 
         log.error("No suitable robots found")
@@ -277,11 +286,13 @@ def cli_drive(addr: Optional[str]) -> NoReturn:
 
 
 class Command(StrEnum):
+    """Possible subcommands of our command line interface"""
     SCAN = "scan"
     DRIVE = "drive"
     SENSE = "sense"
 
     def exec(self, args: Namespace) -> None:
+        """Execute the given subcommand"""
         log.enable_info(args.verbose)
         match self:
             case Command.SCAN:
