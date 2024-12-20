@@ -1,0 +1,142 @@
+/dts-v1/;
+#include <nordic/nrf52840_qiaa.dtsi>
+#include "capbot-pinctrl.dtsi"
+
+/ {
+    model = "CapBot: A battery free robot";
+    compatible = "kul,capbot";
+
+    chosen {
+        zephyr,console = &uart0;
+        zephyr,sram = &sram0;
+        zephyr,flash = &flash0;
+        zephyr,code-partition = &slot0_partition;
+    };
+
+    leds {
+        compatible = "gpio-leds";
+        led_0: led_0 {
+            gpios = <&gpio0 7 GPIO_ACTIVE_LOW>;
+            label = "D15";
+        };
+        led_1: led_1 {
+            gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
+            label = "D16";
+        };
+    };
+
+    buttons {
+        compatible = "gpio-keys";
+        b_0: b_0 {
+            gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+            label = "SW2";
+        };
+    };
+};
+
+&flash0 {
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        boot_partition: partition@0 {
+            label = "mcuboot";
+            reg = <0x00000000 DT_SIZE_K(48)>;
+        };
+
+        slot0_partition: partition@c000 {
+            label = "image-0";
+            reg = <0x0000c000 DT_SIZE_K(472)>;
+        };
+
+        slot1_partition: partition@82000 {
+            label = "image-1";
+            reg = <0x00082000 DT_SIZE_K(472)>;
+        };
+
+        storage_partition: partition@f8000 {
+            label = "storage";
+            reg = <0x000f8000 DT_SIZE_K(32)>;
+        };
+    };
+};
+
+&gpiote {
+    status = "okay";
+};
+
+&gpio0 {
+    status = "okay";
+};
+
+&gpio1 {
+    status = "okay";
+};
+
+&uicr {
+    nfct-pins-as-gpios;
+};
+
+&nfct {
+    status = "disabled";
+};
+
+&pwm0 {
+    status = "okay";
+    pinctrl-0 = <&pwm0_default>;
+    pinctrl-names = "default";
+};
+
+&pwm1 {
+    status = "okay";
+    pinctrl-0 = <&pwm1_default>;
+    pinctrl-names = "default";
+};
+
+
+&uart0 {
+    status = "okay";
+    current-speed = <115200>;
+    pinctrl-0 = <&uart0_default>;
+    pinctrl-1 = <&uart0_sleep>;
+    pinctrl-names = "default", "sleep";
+};
+
+
+&adc {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    status = "okay";
+
+    channel@3 {
+        reg = <3>;
+        zephyr,gain = "ADC_GAIN_4"; /* nRF52840 DOCS: ΔVmeasure = Vref / GAIN */
+        zephyr,reference = "ADC_REF_INTERNAL"; /* nRF52840 DOCS: Internal Vref = 600mV */
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 40)>; /* nRF52840 DOCS: input R > 400k => 40ms */
+        zephyr,input-positive = <NRF_SAADC_AIN3>; /* P0.05 */
+        zephyr,resolution = <14>;
+    };
+
+};
+
+&temp {
+	status = "disabled";
+};
+
+&cryptocell {
+	status = "disabled";
+};
+
+&ecb {
+	status = "disabled";
+};
+
+&ccm {
+	status = "disabled";
+};
+
+
+&acl {
+	status = "disabled";
+};

@@ -1,0 +1,16 @@
+# Enable MPU
+CONFIG_ARM_MPU=y
+
+# Enable hardware stack protection
+CONFIG_HW_STACK_PROTECTION=y
+
+# Enable GPIOs
+CONFIG_GPIO=y
+
+# Enable ADC for voltage measurements
+CONFIG_ADC=y
+
+# Enable PWM for precise motor control
+CONFIG_PWM=y
+
+

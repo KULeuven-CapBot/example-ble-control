@@ -1,0 +1,4 @@
+# Select specif SoC for this board
+
+config BOARD_CAPBOT
+	select SOC_NRF52840_QIAA

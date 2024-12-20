@@ -1,0 +1,8 @@
+# Board-specific default values for Kconfig options
+
+if BOARD_CAPBOT
+
+config BT_CTLR
+	default BT
+
+endif # BOARD_CAPBOT

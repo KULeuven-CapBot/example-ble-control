@@ -1,0 +1,7 @@
+# Describe board's metadata such as: Name, Vendor, SoC, ...
+
+board:
+  name: capbot
+  vendor: kul
+  socs:
+    - name: nrf52840
