@@ -7,13 +7,13 @@
 #ifndef CAPBOT_H
 #define CAPBOT_H
 
-typedef enum capbot_led_e {
-    CAPBOT_D15,
-    CAPBOT_D16,
-} capbot_let_t;
+typedef enum {
+    CB_D15,
+    CB_D16,
+} cb_led_t;
 
 /** @brief Initialize robot's leds & button */
-int capbot_init_io(void);
+int cb_init_io(void);
 
 
 /**
@@ -21,21 +21,21 @@ int capbot_init_io(void);
  *
  * @param led The led to set
  */
-int capbot_led_set(capbot_let_t led);
+int cb_led_set(cb_led_t led);
 
 /**
  * @brief Turn led off
  *
  * @param led The led to clear
  */
-// TODO: int capbot_led_clr(capbot_let_t led);
+int cb_led_clr(cb_led_t led);
 
 /**
  * @brief Toggle a led
  *
  * @param led The led to toggle
  */
-// TODO: int capbot_led_tgl(capbot_let_t led);
+int cb_led_tgl(cb_led_t led);
 
 /**
  * @brief Get a led's status
@@ -44,7 +44,7 @@ int capbot_led_set(capbot_let_t led);
  * @retval 0: the led is turned off
  * @retval 1: the led is turned on
  */
-// TODO: int capbot_led_get(capbot_let_t led);
+int cb_led_get(cb_led_t led);
 
 /**
  * @brief Get button status
@@ -52,6 +52,6 @@ int capbot_led_set(capbot_let_t led);
  * @retval 0: the button isn't pressed
  * @retval 1: the button is pressed
  */
-// TODO: int capbot_btn_get(void);
+int cb_btn_get(void);
 
 #endif /* CAPBOT_H */

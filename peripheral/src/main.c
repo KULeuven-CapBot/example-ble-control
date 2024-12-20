@@ -15,22 +15,61 @@ LOG_MODULE_REGISTER(capbot, LOG_LEVEL_DBG);
 // Structure & methods for inter-thread comm/sync
 // -----------------------------------------------------------------------------
 
-K_MUTEX_DEFINE(status_mutex);
+K_MUTEX_DEFINE(ble_status_mutex);
 
-enum status_e
+typedef enum ble_status_e
 {
     BLE_ADVERTISING,
     BLE_CONNECTED,
     BLE_ERROR,
-} status_v;
+} ble_status_t;
 
-void update_status(enum status_e s)
+/** @brief Global static to hold BLE status. Never access directly but use `ble_status` and `update_ble_status` instead */
+static ble_status_t ble_status_g;
+
+ble_status_t ble_status(void)
 {
-    k_mutex_lock(&status_mutex, K_FOREVER);
-    // TODO: FSM?
-    status_v = s;
-    k_mutex_unlock(&status_mutex);
+    ble_status_t clone;
+    k_mutex_lock(&ble_status_mutex, K_FOREVER);
+    clone = ble_status_g;
+    k_mutex_unlock(&ble_status_mutex);
+    return clone;
 }
+
+void update_ble_status(ble_status_t status)
+{
+    k_mutex_lock(&ble_status_mutex, K_FOREVER);
+    // TODO: FSM?
+    ble_status_g = status;
+    k_mutex_unlock(&ble_status_mutex);
+}
+
+// -----------------------------------------------------------------------------
+// BLE task
+//
+// Initialize robot's BLE GATT service
+// -----------------------------------------------------------------------------
+
+void t_ble_init_ep(void *, void *, void *)
+{
+    LOG_DBG("Initializing BLE...");
+    for (;;)
+    {
+        LOG_WRN("Fake BLE status updates");
+        update_ble_status(BLE_ADVERTISING);
+        k_sleep(K_MSEC(5000));
+        update_ble_status(BLE_CONNECTED);
+        k_sleep(K_MSEC(5000));
+        update_ble_status(BLE_ERROR);
+        k_sleep(K_MSEC(5000));
+    }
+}
+
+#define T_BLE_INIT_STACKSIZE 1024
+#define T_BLE_INIT_PRIORITY 1
+#define T_BLE_INIT_OPTIONS 0
+#define T_BLE_INIT_DELAY 0
+K_THREAD_DEFINE(ble_init, T_BLE_INIT_STACKSIZE, t_ble_init_ep, NULL, NULL, NULL, T_BLE_INIT_PRIORITY, T_BLE_INIT_OPTIONS, T_BLE_INIT_DELAY);
 
 // -----------------------------------------------------------------------------
 // Status led task
@@ -42,12 +81,12 @@ void update_status(enum status_e s)
 /**
  * @brief Determine pattern mask for BLE status led
  *
- * @param s Status to get pattern for
+ * @param status Status to get pattern for
  * @return uint16_t The pattern
  */
-uint16_t ble_led_pattern(enum status_e s)
+uint16_t ble_led_pattern(ble_status_t status)
 {
-    switch (s)
+    switch (status)
     {
     case BLE_ADVERTISING:
         return 0b1111111100000000;
@@ -64,25 +103,32 @@ uint16_t ble_led_pattern(enum status_e s)
 /** @brief Entry point of status led task */
 void t_status_led_ep(void *, void *, void *)
 {
-    if(capbot_init_io()) {
+    const cb_led_t status_led = CB_D15;
+    uint16_t led_pattern = 0;
+    uint8_t pattern_index = 0;
+
+    if (cb_init_io())
+    {
         LOG_ERR("Could not initialize robot IO");
         return;
     }
 
-    // DEBUG: Set initial let status
-    capbot_led_set(CAPBOT_D15);
-    capbot_led_set(CAPBOT_D16);
-
     for (;;)
     {
-        LOG_DBG("ADV: 0x%x", ble_led_pattern(BLE_ADVERTISING));
-        LOG_DBG("CON: 0x%x", ble_led_pattern(BLE_CONNECTED));
-        LOG_DBG("ERR: 0x%x", ble_led_pattern(BLE_ERROR));
-        k_sleep(K_MSEC(5000));
+        // Get pattern based on current BLE status
+        led_pattern = ble_led_pattern(ble_status());
+        // Update led based on patters and index
+        int err = ((led_pattern >> pattern_index) & 0b1) ? cb_led_set(status_led) : cb_led_clr(status_led);
+        if (err)
+            LOG_WRN("Error during BLE status led update");
+        // Update index
+        pattern_index = (pattern_index + 1) % (sizeof(led_pattern) * 8);
+        // Sleep before next update => circa one pattern cycle per second
+        k_sleep(K_MSEC(62));
     }
 }
 
-#define T_STATUS_LED_STACKSIZE 256 * 4
+#define T_STATUS_LED_STACKSIZE 256
 #define T_STATUS_LED_PRIORITY 10
 #define T_STATUS_LED_OPTIONS 0
 #define T_STATUS_LED_DELAY 0
