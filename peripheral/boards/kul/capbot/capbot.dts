@@ -32,6 +32,13 @@
             label = "SW2";
         };
     };
+
+    aliases {
+        // Aliases for use in software
+        d15 = &led_0;
+        d16 = &led_1;
+        sw2 = &b_0;
+    };
 };
 
 &flash0 {

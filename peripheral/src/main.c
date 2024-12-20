@@ -7,6 +7,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
+#include "capbot.h"
+
 LOG_MODULE_REGISTER(capbot, LOG_LEVEL_DBG);
 
 // -----------------------------------------------------------------------------
@@ -62,6 +64,15 @@ uint16_t ble_led_pattern(enum status_e s)
 /** @brief Entry point of status led task */
 void t_status_led_ep(void *, void *, void *)
 {
+    if(capbot_init_io()) {
+        LOG_ERR("Could not initialize robot IO");
+        return;
+    }
+
+    // DEBUG: Set initial let status
+    capbot_led_set(CAPBOT_D15);
+    capbot_led_set(CAPBOT_D16);
+
     for (;;)
     {
         LOG_DBG("ADV: 0x%x", ble_led_pattern(BLE_ADVERTISING));
