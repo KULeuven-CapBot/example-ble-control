@@ -7,13 +7,17 @@
 #ifndef CAPBOT_H
 #define CAPBOT_H
 
+// -----------------------------------------------------------------------------
+// On-board IO
+// -----------------------------------------------------------------------------
+
 typedef enum {
     CB_D15,
     CB_D16,
 } cb_led_t;
 
 /** @brief Initialize robot's leds & button */
-int cb_init_io(void);
+int cb_io_init(void);
 
 
 /**
@@ -53,5 +57,31 @@ int cb_led_get(cb_led_t led);
  * @retval 1: the button is pressed
  */
 int cb_btn_get(void);
+
+// -----------------------------------------------------------------------------
+// On-board voltage measurements
+// -----------------------------------------------------------------------------
+typedef enum {
+    CB_VNONE,
+    CB_VIN,
+    CB_VCAP,
+    CB_VMOTOR,
+} cb_measure_t;
+
+
+/**
+ * @brief Initialize robot's voltage measurement system
+ *
+ * @return int
+ */
+int cb_measure_init(void);
+
+/**
+ * @brief Measure supercapacitor voltage
+ *
+ * @retval >0 : The measured voltage in mV
+ * @retval `E_ADC_ERR` : Could not read from ADC
+ */
+int cb_measure_vcap(void);
 
 #endif /* CAPBOT_H */

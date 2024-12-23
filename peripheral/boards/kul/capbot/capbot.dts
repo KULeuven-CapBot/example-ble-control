@@ -33,6 +33,11 @@
         };
     };
 
+    zephyr,user {
+        io-channels = <&adc 3>;
+        measure-en-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>, <&gpio1 0 GPIO_ACTIVE_HIGH>, <&gpio1 13 GPIO_ACTIVE_HIGH>;
+    };
+
     aliases {
         // Aliases for use in software
         d15 = &led_0;
@@ -116,7 +121,7 @@
     #size-cells = <0>;
     status = "okay";
 
-    channel@3 {
+    ain_3: channel@3 {
         reg = <3>;
         zephyr,gain = "ADC_GAIN_4"; /* nRF52840 DOCS: ΔVmeasure = Vref / GAIN */
         zephyr,reference = "ADC_REF_INTERNAL"; /* nRF52840 DOCS: Internal Vref = 600mV */

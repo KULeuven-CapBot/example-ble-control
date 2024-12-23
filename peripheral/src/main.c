@@ -107,11 +107,14 @@ void t_status_led_ep(void *, void *, void *)
     uint16_t led_pattern = 0;
     uint8_t pattern_index = 0;
 
-    if (cb_init_io())
+    if (cb_io_init())
     {
         LOG_ERR("Could not initialize robot IO");
         return;
     }
+
+    cb_measure_init();
+    LOG_DBG("VCap = %d mV", cb_measure_vcap());
 
     for (;;)
     {
@@ -128,7 +131,7 @@ void t_status_led_ep(void *, void *, void *)
     }
 }
 
-#define T_STATUS_LED_STACKSIZE 256
+#define T_STATUS_LED_STACKSIZE 256 * 4
 #define T_STATUS_LED_PRIORITY 10
 #define T_STATUS_LED_OPTIONS 0
 #define T_STATUS_LED_DELAY 0
