@@ -5,4 +5,4 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(peripheral)
 
 include_directories(inc)
-target_sources(app PRIVATE src/main.c src/capbot.c)
+target_sources(app PRIVATE src/main.c src/capbot_io.c src/capbot_adc.c)
