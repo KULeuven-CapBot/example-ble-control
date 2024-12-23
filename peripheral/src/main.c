@@ -113,8 +113,16 @@ void t_status_led_ep(void *, void *, void *)
         return;
     }
 
+    // DEBUG: print VCap
     cb_measure_init();
     LOG_DBG("VCap = %d mV", cb_measure_vcap());
+
+    // DEBUG: run motors for a sec.
+    cb_motor_speed_t speed = {.front_left = 80, .front_right = -80, .back_left = 80, .back_right = -80};
+    cb_motor_init();
+    cb_set_motor_speed(&speed);
+    k_sleep(K_MSEC(1000));
+    cb_stop();
 
     for (;;)
     {
