@@ -86,6 +86,9 @@ class CapBotMotors:
 
     @classmethod
     def motors_from_str(cls, strings: str) -> Self:
+        """
+        Construct motor "struct" from comma separated string
+        """
         strings = strings.replace("(", "").replace(")", "")
         strings = strings.replace("{", "").replace("}", "")
         strings = strings.replace("[", "").replace("]", "")
@@ -94,8 +97,7 @@ class CapBotMotors:
 
         if len(ints) != 4:
             raise ValueError
-        else:
-            return cls(ints[0], ints[1], ints[2], ints[3])
+        return cls(ints[0], ints[1], ints[2], ints[3])
 
 
 class CapBotSensors:
@@ -318,22 +320,26 @@ class Command(StrEnum):
     DRIVE = "drive"
     SENSE = "sense"
 
-    def exec(self, args: Namespace) -> None:
+    def exec(self, cli_args: Namespace) -> None:
         """Execute the given subcommand"""
-        log.enable_info(args.verbose)
+        log.enable_info(cli_args.verbose)
         match self:
             case Command.SCAN:
-                if args.address is not None:
+                if cli_args.address is not None:
                     log.warn("Address argument is unused for scan subcommand")
-                if args.speeds or args.duration is not None:
-                    log.warn("Speeds/duration argument is meaningless for scan subcommand")
+                if cli_args.speeds or cli_args.duration is not None:
+                    log.warn(
+                        "Speeds/duration argument is meaningless for scan subcommand"
+                    )
                 cli_scan()
             case Command.DRIVE:
-                cli_drive(args.address, args.speeds, args.duration)
+                cli_drive(cli_args.address, cli_args.speeds, cli_args.duration)
             case Command.SENSE:
-                if args.speeds or args.duration is not None:
-                    log.warn("Speeds/duration argument is meaningless for sense subcommand")
-                cli_sense(args.address)
+                if cli_args.speeds or cli_args.duration is not None:
+                    log.warn(
+                        "Speeds/duration argument is meaningless for sense subcommand"
+                    )
+                cli_sense(cli_args.address)
             case unknown:  # Default: matches everything not specified above
                 assert_never(unknown)
 
@@ -342,7 +348,9 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("command", choices=[cmd.lower() for cmd in Command])
     parser.add_argument("-a", "--address", type=str, required=False)
-    parser.add_argument("-s", "--speeds", type=CapBotMotors.motors_from_str, required=False)
+    parser.add_argument(
+        "-s", "--speeds", type=CapBotMotors.motors_from_str, required=False
+    )
     parser.add_argument("-d", "--duration", type=int, required=False)
     parser.add_argument("-v", "--verbose", action="store_true")
 
