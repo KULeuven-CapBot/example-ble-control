@@ -14,6 +14,21 @@
 #define PWM_MIN_DUTY_CYCLE 0          /** ns */
 #define PWM_MAX_DUTY_CYCLE PWM_PERIOD /** ns */
 
+#define HALL_TICKS_PER_REVOLUTION 1380
+
+/**
+ * @brief Convert from RPM to PWM duty-cycle
+ */
+static inline uint32_t rpm_to_duty_cycle(int rpm)
+{
+    const uint32_t max_rpm = 80;
+    const uint32_t min_rpm = 0;
+    rpm = (rpm < min_rpm) ? min_rpm : (rpm > max_rpm) ? max_rpm
+                                                      : rpm;
+    uint32_t duty_cycle = min_rpm + rpm * (PWM_MAX_DUTY_CYCLE - PWM_MIN_DUTY_CYCLE) / (max_rpm - min_rpm);
+    return duty_cycle;
+}
+
 /** @brief Holds a motor's GPIO handles */
 struct motor_gpio
 {
@@ -32,11 +47,13 @@ struct motor_timing
     uint64_t time_delta;
 };
 
-/** @brief Holds everything related to one motor */
+/** @brief Wraps everything related to one motor together*/
 struct motor
 {
     // Motor's IO handles
     const struct motor_gpio *gpio;
+    // Callback info for motor's hall interrupt
+    struct gpio_callback hall_cb_data;
     // To keep track of a motor's steps: counts up/down every hall interrupt
     int64_t step_count;
     // Keep track of each motor's step_delta & time_delta for calculating its speed
@@ -79,43 +96,134 @@ static const struct motor_gpio mbl_io = {
 // Static objects for motors
 // -----------------------------------------------------------------------------
 
+static struct motor mfl = {.gpio = &mfl_io, .timing = {0, 0, 0, 0}, .step_count = 0};
+static struct motor mfr = {.gpio = &mfr_io, .timing = {0, 0, 0, 0}, .step_count = 0};
+static struct motor mbl = {.gpio = &mbl_io, .timing = {0, 0, 0, 0}, .step_count = 0};
+static struct motor mbr = {.gpio = &mbr_io, .timing = {0, 0, 0, 0}, .step_count = 0};
+
 // -----------------------------------------------------------------------------
 // Motor control: private functions
 // -----------------------------------------------------------------------------
 
 /**
+ * @brief Initialize a motor's IO
+ *
+ * @param motor
+ * @return int
+ */
+static int init_motor_io(struct motor *motor, gpio_callback_handler_t hall_isr)
+{
+    int err = 0;
+
+    err |= !pwm_is_ready_dt(&motor->gpio->in_a);
+    err |= !pwm_is_ready_dt(&motor->gpio->in_b);
+
+    if (err)
+    {
+        return err;
+    }
+
+    err |= !gpio_is_ready_dt(&motor->gpio->hall_c1);
+    err |= !gpio_is_ready_dt(&motor->gpio->hall_c2);
+
+    if (err)
+    {
+        return err;
+    }
+
+    err |= gpio_pin_configure_dt(&motor->gpio->hall_c1, GPIO_INPUT);
+    err |= gpio_pin_configure_dt(&motor->gpio->hall_c2, GPIO_INPUT);
+
+    if (err)
+    {
+        return err;
+    }
+
+    gpio_init_callback(&motor->hall_cb_data, hall_isr, BIT(motor->gpio->hall_c2.pin));
+    err |= gpio_pin_interrupt_configure_dt(&motor->gpio->hall_c2, GPIO_INT_EDGE_BOTH);
+    err |= gpio_add_callback_dt(&motor->gpio->hall_c2, &motor->hall_cb_data);
+
+    return err;
+}
+
+/**
  * @brief Let a motor turn with given direction
  *
- * @param motor Pointer to motor's GPIO handles
+ * @param motor Pointer to motor's wrapper struct
  * @param direction Direction to turn (`1` = forwards, `0` = backwards)
  */
-static inline void set_motor_direction(const struct motor_gpio *motor, uint8_t direction, uint32_t duty_cycle)
+static inline void set_motor_direction(const struct motor *motor, uint8_t direction, uint32_t duty_cycle)
 {
-    pwm_set_dt(&(motor->in_a), PWM_PERIOD, direction ? PWM_MIN_DUTY_CYCLE : duty_cycle);
-    pwm_set_dt(&(motor->in_b), PWM_PERIOD, direction ? duty_cycle : PWM_MIN_DUTY_CYCLE);
+    pwm_set_dt(&(motor->gpio->in_a), PWM_PERIOD, direction ? PWM_MIN_DUTY_CYCLE : duty_cycle);
+    pwm_set_dt(&(motor->gpio->in_b), PWM_PERIOD, direction ? duty_cycle : PWM_MIN_DUTY_CYCLE);
 }
 
 /**
  * @brief Stop a motor
  *
- * @param motor Pointer to motor's GPIO handles
+ * @param motor Pointer to motor's wrapper struct
  */
-static inline void set_motor_stop(const struct motor_gpio *motor)
+static inline void set_motor_stop(const struct motor *motor)
 {
-    pwm_set_dt(&(motor->in_a), PWM_PERIOD, PWM_MIN_DUTY_CYCLE);
-    pwm_set_dt(&(motor->in_b), PWM_PERIOD, PWM_MIN_DUTY_CYCLE);
+    pwm_set_dt(&(motor->gpio->in_a), PWM_PERIOD, PWM_MIN_DUTY_CYCLE);
+    pwm_set_dt(&(motor->gpio->in_b), PWM_PERIOD, PWM_MIN_DUTY_CYCLE);
 }
 
 /**
- * @brief Convert from RPM to PWM duty-cycle
+ * @brief Update motor timing
  */
-static inline uint32_t duty_cycle_from_rpm(int rpm)
+static inline void update_motor_timing(struct motor *motor, uint64_t time_curr)
 {
-    const uint32_t max_rpm = 80;
-    const uint32_t min_rpm = 0;
-    uint32_t duty_cycle = min_rpm + rpm * (PWM_MAX_DUTY_CYCLE - PWM_MIN_DUTY_CYCLE) / (max_rpm - min_rpm);
-    return duty_cycle;
+    motor->timing.step_delta = motor->step_count - motor->timing.step_prev;
+    motor->timing.step_prev = motor->step_count;
+    motor->timing.time_delta = time_curr - motor->timing.time_prev;
+    motor->timing.time_prev = time_curr;
 }
+
+/**
+ * @brief Get motor's angle in degrees
+ */
+static inline int get_motor_angle(struct motor *motor)
+{
+    // TODO: Verify conversion (below is an educated guess)
+    return motor->step_count * 360 / HALL_TICKS_PER_REVOLUTION;
+}
+
+/**
+ * @brief Get motor's speed in RPM
+ */
+static inline int get_motor_rpm(struct motor *motor)
+{
+    // FIXME: Mutex timing info?
+    int64_t step_d = motor->timing.step_delta;
+    uint64_t time_d = motor->timing.time_delta;
+
+    // TODO: Verify conversion (below is an educated guess)
+    return (step_d * 60000) / (int64_t)k_ticks_to_ms_near64(time_d * HALL_TICKS_PER_REVOLUTION);
+}
+
+/**
+ * @brief Generic hall sensor interrupt handler (called by motor specific ones)
+ */
+static inline void hall_isr(struct motor *motor)
+{
+    int c1 = gpio_pin_get_dt(&motor->gpio->hall_c1);
+    int c2 = gpio_pin_get_dt(&motor->gpio->hall_c2);
+
+    if (c1 == c2)
+    {
+        motor->step_count++;
+    }
+    else
+    {
+        motor->step_count--;
+    }
+}
+
+void mfr_hall_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins) { hall_isr(&mfr); }
+void mfl_hall_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins) { hall_isr(&mfl); }
+void mbr_hall_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins) { hall_isr(&mbr); }
+void mbl_hall_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins) { hall_isr(&mbl); }
 
 // -----------------------------------------------------------------------------
 // Motor control: API (public functions)
@@ -125,46 +233,34 @@ int cb_motor_init(void)
 {
     int err = 0;
 
-    err |= !pwm_is_ready_dt(&mfr_io.in_a);
-    err |= !pwm_is_ready_dt(&mfr_io.in_b);
-    err |= !gpio_is_ready_dt(&mfr_io.hall_c1);
-    err |= !gpio_is_ready_dt(&mfr_io.hall_c2);
-
-    err |= !pwm_is_ready_dt(&mfl_io.in_a);
-    err |= !pwm_is_ready_dt(&mfl_io.in_b);
-    err |= !gpio_is_ready_dt(&mfl_io.hall_c1);
-    err |= !gpio_is_ready_dt(&mfl_io.hall_c2);
-
-    err |= !pwm_is_ready_dt(&mbr_io.in_a);
-    err |= !pwm_is_ready_dt(&mbr_io.in_b);
-    err |= !gpio_is_ready_dt(&mbr_io.hall_c1);
-    err |= !gpio_is_ready_dt(&mbr_io.hall_c2);
-
-    err |= !pwm_is_ready_dt(&mbl_io.in_a);
-    err |= !pwm_is_ready_dt(&mbl_io.in_b);
-    err |= !gpio_is_ready_dt(&mbl_io.hall_c1);
-    err |= !gpio_is_ready_dt(&mbl_io.hall_c2);
-
+    err = init_motor_io(&mfl, mfl_hall_isr);
     if (err)
     {
         return err;
     }
+    set_motor_stop(&mfl);
 
-    err |= gpio_pin_configure_dt(&mfr_io.hall_c1, GPIO_INPUT);
-    err |= gpio_pin_configure_dt(&mfr_io.hall_c2, GPIO_INPUT);
-    err |= gpio_pin_configure_dt(&mfl_io.hall_c1, GPIO_INPUT);
-    err |= gpio_pin_configure_dt(&mfl_io.hall_c2, GPIO_INPUT);
-    err |= gpio_pin_configure_dt(&mbr_io.hall_c1, GPIO_INPUT);
-    err |= gpio_pin_configure_dt(&mbr_io.hall_c2, GPIO_INPUT);
-    err |= gpio_pin_configure_dt(&mbl_io.hall_c1, GPIO_INPUT);
-    err |= gpio_pin_configure_dt(&mbl_io.hall_c2, GPIO_INPUT);
-
+    err = init_motor_io(&mfr, mfr_hall_isr);
     if (err)
     {
         return err;
     }
+    set_motor_stop(&mfr);
 
-    cb_stop();
+    err = init_motor_io(&mbl, mbl_hall_isr);
+    if (err)
+    {
+        return err;
+    }
+    set_motor_stop(&mbl);
+
+    err = init_motor_io(&mbr, mbr_hall_isr);
+    if (err)
+    {
+        return err;
+    }
+    set_motor_stop(&mbr);
+
     return 0;
 }
 
@@ -182,26 +278,32 @@ void cb_set_motor_speed(cb_motor_speed_t *speeds)
     uint8_t mbr_dir = speeds->back_right > 0;
     uint32_t mbr_rpm = mbr_dir ? speeds->back_right : -speeds->back_right;
 
-    set_motor_direction(&mfl_io, mfl_dir, duty_cycle_from_rpm(mfl_rpm));
-    set_motor_direction(&mfr_io, mfr_dir, duty_cycle_from_rpm(mfr_rpm));
-    set_motor_direction(&mbl_io, mbl_dir, duty_cycle_from_rpm(mbl_rpm));
-    set_motor_direction(&mbr_io, mbr_dir, duty_cycle_from_rpm(mbr_rpm));
+    set_motor_direction(&mfl, mfl_dir, rpm_to_duty_cycle(mfl_rpm));
+    set_motor_direction(&mfr, mfr_dir, rpm_to_duty_cycle(mfr_rpm));
+    set_motor_direction(&mbl, mbl_dir, rpm_to_duty_cycle(mbl_rpm));
+    set_motor_direction(&mbr, mbr_dir, rpm_to_duty_cycle(mbr_rpm));
 }
 
 void cb_stop(void)
 {
-    set_motor_stop(&mfl_io);
-    set_motor_stop(&mfr_io);
-    set_motor_stop(&mbl_io);
-    set_motor_stop(&mbr_io);
+    set_motor_stop(&mfl);
+    set_motor_stop(&mfr);
+    set_motor_stop(&mbl);
+    set_motor_stop(&mbr);
 }
 
-void cb_get_motor_angle(cb_motor_angle_t *speeds)
+void cb_get_motor_angle(cb_motor_angle_t *angles)
 {
-    // FIXME: Get motor angles
+    angles->front_left = get_motor_angle(&mfl);
+    angles->front_right = get_motor_angle(&mfr);
+    angles->back_left = get_motor_angle(&mbl);
+    angles->back_right = get_motor_angle(&mbr);
 }
 
 void cb_get_motor_speed(cb_motor_speed_t *speeds)
 {
-    // FIXME: Get motor speeds
+    speeds->front_left = get_motor_rpm(&mfl);
+    speeds->front_right = get_motor_rpm(&mfr);
+    speeds->back_left = get_motor_rpm(&mbl);
+    speeds->back_right = get_motor_rpm(&mbr);
 }

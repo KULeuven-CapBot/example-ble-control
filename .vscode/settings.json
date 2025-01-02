@@ -5,6 +5,6 @@
     "files.associations": {
         "*.dump": "arm",
         "*.h": "c",
-        "*.c": "c"
+        "*.c": "c",
     },
 }
