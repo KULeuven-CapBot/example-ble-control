@@ -336,7 +336,7 @@ if __name__ == "__main__":
 
     drive_parser = subparsers.add_parser(Command.DRIVE.lower(), description="Send drive command to a robot")
     drive_parser.add_argument("speed", nargs=4, type=int)
-    drive_parser.add_argument("duration", type=int)
+    drive_parser.add_argument("-d", "--duration", type=int, help="time before stopping again (ms)", required=True)
 
     args = parser.parse_args()
     Command(args.command).exec(args)

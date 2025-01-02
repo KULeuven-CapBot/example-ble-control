@@ -38,7 +38,7 @@ static ssize_t rcs_drive(struct bt_conn *conn, const struct bt_gatt_attr *attr, 
 
     LOG_DBG("Setting motors: {%d %d %d %d} for %lu milliseconds", speeds.front_left, speeds.front_right, speeds.back_left, speeds.back_right, duration);
     cb_set_motor_speed(&speeds);
-    k_sleep(K_MSEC(duration)); // FIXME: Can other characteristics be read during this delay?
+    k_sleep(K_MSEC(duration)); // BUG: Other characteristics can't be read during this delay?
     LOG_DBG("Setting motors: {0 0 0 0}");
     cb_stop();
 
