@@ -2,6 +2,7 @@
  * @file capbot_motor.c
  * @author Lowie Deferme <lowie.deferme@kuleuven.be>
  * @brief CapBot motor control
+ * @date 2024-12-23
  */
 
 #include <zephyr/drivers/gpio.h>
@@ -195,7 +196,12 @@ void cb_stop(void)
     set_motor_stop(&mbr_io);
 }
 
+void cb_get_motor_angle(cb_motor_angle_t *speeds)
+{
+    // FIXME: Get motor angles
+}
+
 void cb_get_motor_speed(cb_motor_speed_t *speeds)
 {
-    // TODO: Get motor speeds
+    // FIXME: Get motor speeds
 }

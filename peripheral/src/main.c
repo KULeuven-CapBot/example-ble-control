@@ -6,13 +6,15 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/bluetooth/bluetooth.h>
 
 #include "capbot.h"
+#include "robot_control_service.h"
 
-LOG_MODULE_REGISTER(capbot, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 // -----------------------------------------------------------------------------
-// Structure & methods for inter-thread comm/sync
+// Structure & methods for inter-thread communication/sync
 // -----------------------------------------------------------------------------
 
 K_MUTEX_DEFINE(ble_status_mutex);
@@ -45,24 +47,86 @@ void update_ble_status(ble_status_t status)
 }
 
 // -----------------------------------------------------------------------------
-// BLE task
+// System initialization
+// -----------------------------------------------------------------------------
+
+int t_sys_init_ep(void)
+{
+    LOG_DBG("Initializing on-board IO ...");
+    if (cb_io_init())
+    {
+        LOG_ERR("Could not initialize on-board IO");
+        return -1;
+    }
+    LOG_INF("On-board IO initialization done");
+
+    LOG_DBG("Initializing ADC ...");
+    if (cb_measure_init())
+    {
+        LOG_ERR("Could not initialize ADC");
+        return -1;
+    }
+    LOG_INF("ADC initialization done");
+
+    LOG_DBG("Initializing motors ...");
+    if (cb_motor_init())
+    {
+        LOG_ERR("Could not initialize motors");
+        return -1;
+    }
+    LOG_INF("Motor initialization done");
+
+    return 0;
+}
+
+SYS_INIT_NAMED(sys_init, t_sys_init_ep, APPLICATION, 5);
+
+// -----------------------------------------------------------------------------
+// Bluetooth low energy task
 //
 // Initialize robot's BLE GATT service
 // -----------------------------------------------------------------------------
 
+#define DEVICE_NAME "CapBot"
+#define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
+
+/** @brief BLE Advertisement data */
+static const struct bt_data adv_data[] = {
+    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+    BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
+};
+
+/** @brief BLE Scan response data */
+static const struct bt_data rsp_data[] = {
+    BT_DATA_BYTES(BT_DATA_UUID128_SOME, BT_UUID_RCS_VAL),
+    BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
+};
+
 void t_ble_init_ep(void *, void *, void *)
 {
-    LOG_DBG("Initializing BLE...");
-    for (;;)
+    int err = 0;
+    LOG_DBG("Initializing bluetooth ...");
+
+    err = bt_enable(NULL);
+    if (err)
     {
-        LOG_WRN("Fake BLE status updates");
-        update_ble_status(BLE_ADVERTISING);
-        k_sleep(K_MSEC(5000));
-        update_ble_status(BLE_CONNECTED);
-        k_sleep(K_MSEC(5000));
+        LOG_ERR("Bluetooth initialization failed (err %d)", err);
         update_ble_status(BLE_ERROR);
-        k_sleep(K_MSEC(5000));
+        return;
     }
+    LOG_INF("Bluetooth initialized");
+
+    err = bt_le_adv_start(BT_LE_ADV_CONN, adv_data, ARRAY_SIZE(adv_data), rsp_data, ARRAY_SIZE(rsp_data));
+    if (err)
+    {
+        LOG_ERR("BLE advertising failed to start (err %d)", err);
+        update_ble_status(BLE_ERROR);
+        return;
+    }
+    update_ble_status(BLE_ADVERTISING);
+    LOG_INF("BLE advertising started");
+
+    return;
 }
 
 #define T_BLE_INIT_STACKSIZE 1024
@@ -107,23 +171,6 @@ void t_status_led_ep(void *, void *, void *)
     uint16_t led_pattern = 0;
     uint8_t pattern_index = 0;
 
-    if (cb_io_init())
-    {
-        LOG_ERR("Could not initialize robot IO");
-        return;
-    }
-
-    // DEBUG: print VCap
-    cb_measure_init();
-    LOG_DBG("VCap = %d mV", cb_measure_vcap());
-
-    // DEBUG: run motors for a sec.
-    cb_motor_speed_t speed = {.front_left = 80, .front_right = -80, .back_left = 80, .back_right = -80};
-    cb_motor_init();
-    cb_set_motor_speed(&speed);
-    k_sleep(K_MSEC(1000));
-    cb_stop();
-
     for (;;)
     {
         // Get pattern based on current BLE status
@@ -139,7 +186,7 @@ void t_status_led_ep(void *, void *, void *)
     }
 }
 
-#define T_STATUS_LED_STACKSIZE 256 * 4
+#define T_STATUS_LED_STACKSIZE 256
 #define T_STATUS_LED_PRIORITY 10
 #define T_STATUS_LED_OPTIONS 0
 #define T_STATUS_LED_DELAY 0

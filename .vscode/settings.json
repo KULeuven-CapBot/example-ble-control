@@ -2,4 +2,9 @@
     "nrf-connect.applications": [
         "${workspaceFolder}/peripheral"
     ],
+    "files.associations": {
+        "*.dump": "arm",
+        "robot_control_service.h": "c",
+        "cstdlib": "c"
+    },
 }

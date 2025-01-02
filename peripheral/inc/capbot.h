@@ -2,6 +2,7 @@
  * @file capbot.h
  * @author Lowie Deferme <lowie.deferme@kuleuven.be>
  * @brief Header file for CapBot library
+ * @date 2024-12-20
  */
 
 #ifndef CAPBOT_H
@@ -101,6 +102,19 @@ typedef struct
     int back_right;
 } cb_motor_speed_t;
 
+/** @brief Motor angle (degrees) */
+typedef struct
+{
+    /** @brief Front left motor angle (degrees)*/
+    int front_left;
+    /** @brief Front right motor angle (degrees)*/
+    int front_right;
+    /** @brief Back left motor angle (degrees)*/
+    int back_left;
+    /** @brief Back right motor angle (degrees)*/
+    int back_right;
+} cb_motor_angle_t;
+
 /**
  * @brief Initialize motors
  * @details v1.0 equivalent: Motors_init(void)
@@ -108,9 +122,8 @@ typedef struct
  */
 int cb_motor_init(void);
 
-
 /**
- * @brief Set motor speeds
+ * @brief Set individual motor speeds
  * @param speeds struct with the new speeds
  */
 void cb_set_motor_speed(cb_motor_speed_t *speeds);
@@ -120,6 +133,12 @@ void cb_set_motor_speed(cb_motor_speed_t *speeds);
  * @param speeds struct to populate with the new speeds
  */
 void cb_get_motor_speed(cb_motor_speed_t *speeds);
+
+/**
+ * @brief Get motor angles
+ * @param speeds struct to populate with the new angles
+ */
+void cb_get_motor_angle(cb_motor_angle_t *angles);
 
 /* Convenience API overview:
  *                          ^
@@ -163,7 +182,7 @@ void cb_stop(void);
  *
  * @param speed Desired speed (rpm)
  */
-// void cb_forw(unsigned int speed);
+//TODO: void cb_forw(unsigned int speed);
 
 /**
  * @brief Move robot backwards
@@ -172,7 +191,7 @@ void cb_stop(void);
  *
  * @param speed Desired speed (rpm)
  */
-// void cb_back(unsigned int speed);
+//TODO: void cb_back(unsigned int speed);
 
 /**
  * @brief Move robot right
@@ -181,7 +200,7 @@ void cb_stop(void);
  *
  * @param speed Desired speed (rpm)
  */
-// void cb_right(unsigned int speed);
+//TODO: void cb_right(unsigned int speed);
 
 /**
  * @brief Move robot  left
@@ -190,7 +209,7 @@ void cb_stop(void);
  *
  * @param speed Desired speed (rpm)
  */
-// void cb_left(unsigned int speed);
+//TODO: void cb_left(unsigned int speed);
 
 /**
  * @brief Rotate clockwise
@@ -199,7 +218,7 @@ void cb_stop(void);
  *
  * @param speed Desired wheel speed (rpm)
  */
-// void cb_rotate_cw(unsigned int speed);
+//TODO: void cb_rotate_cw(unsigned int speed);
 
 /**
  * @brief Rotate counterclockwise
@@ -208,6 +227,6 @@ void cb_stop(void);
  *
  * @param speed Desired wheel speed (rpm)
  */
-// void cb_rotate_ccw(unsigned int speed);
+//TODO: void cb_rotate_ccw(unsigned int speed);
 
 #endif /* CAPBOT_H */

@@ -2,6 +2,8 @@
  * @file capbot_io.c
  * @author Lowie Deferme <lowie.deferme@kuleuven.be>
  * @brief CapBot on-board IO library
+ * @date 2024-12-23
+
  */
 
 #include <zephyr/drivers/gpio.h>

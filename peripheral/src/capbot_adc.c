@@ -2,6 +2,7 @@
  * @file capbot_adc.c
  * @author Lowie Deferme <lowie.deferme@kuleuven.be>
  * @brief CapBot voltage measurements
+ * @date 2024-12-23
  */
 
 #include <zephyr/drivers/gpio.h>

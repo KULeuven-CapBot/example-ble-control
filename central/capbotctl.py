@@ -3,7 +3,7 @@
 import asyncio
 import sys
 
-from typing import List, NoReturn, Optional, assert_never
+from typing import List, NoReturn, Optional, Self, assert_never
 from enum import StrEnum
 
 from argparse import ArgumentParser, Namespace
@@ -57,21 +57,17 @@ class CapBotUuid(StrEnum):
     """Enum with different UUIDs for our "Robot Control Service" """
 
     SERVICE = normalize_uuid_32(0x00000030)  # Robot Control Service
-    DRIVE = normalize_uuid_32(0x00000031)  # Drive characteristic
+    DRIVE = normalize_uuid_32(0x00000031)  # Motor drive characteristic
     SPEED = normalize_uuid_32(0x00000032)  # Motor speed characteristic
     ANGLE = normalize_uuid_32(0x00000033)  # Motor angle characteristic
-    VCAP = normalize_uuid_32(0x00000034)  # Capacitor voltage characteristic
+    VOLTAGE = normalize_uuid_32(0x00000034)  # Voltage measurement characteristic
 
 
 class CapBotMotors:
     """Structure to hold an integer for each motor"""
 
     def __init__(
-        self,
-        front_left: int,
-        front_right: int,
-        back_left: int,
-        back_right: int
+        self, front_left: int, front_right: int, back_left: int, back_right: int
     ):
         self.front_left: int = front_left
         self.front_right: int = front_right
@@ -87,6 +83,19 @@ class CapBotMotors:
             f"back_right: {self.back_right}"
             "}"
         )
+
+    @classmethod
+    def motors_from_str(cls, strings: str) -> Self:
+        strings = strings.replace("(", "").replace(")", "")
+        strings = strings.replace("{", "").replace("}", "")
+        strings = strings.replace("[", "").replace("]", "")
+        strings = strings.replace(" ", "")
+        ints = list(map(int, strings.split(",")))
+
+        if len(ints) != 4:
+            raise ValueError
+        else:
+            return cls(ints[0], ints[1], ints[2], ints[3])
 
 
 class CapBotSensors:
@@ -152,7 +161,10 @@ async def read_voltage(client: BleakClient) -> float:
     """Read the robot's capacitor voltage"""
     if not client.is_connected:
         await client.connect()
-    raw = await client.read_gatt_char(CapBotUuid.VCAP)
+    raw = await client.read_gatt_char(CapBotUuid.VOLTAGE)
+    log.info(f"Raw voltage data: {raw.hex()}")
+    if len(raw) != 2:
+        log.error("Received malformed voltage data")
     return int.from_bytes(raw, "little") / 1000.0
 
 
@@ -161,6 +173,10 @@ async def read_angle(client: BleakClient) -> CapBotMotors:
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.ANGLE)
+    log.info(f"Raw angle data: {raw.hex()}")
+
+    if len(raw) != 16:
+        log.error("Received malformed angle data")
     dat = CapBotMotors(
         front_left=int.from_bytes(raw[0:4], "little", signed=True),
         front_right=int.from_bytes(raw[4:8], "little", signed=True),
@@ -175,22 +191,32 @@ async def read_speed(client: BleakClient) -> CapBotMotors:
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.SPEED)
-    # FIXME: Update according to RCS spec in readme
+    log.info(f"Raw speed data: {raw.hex()}")
+    if len(raw) != 4:
+        log.error("Received malformed speed data")
     dat = CapBotMotors(
-        front_left=int.from_bytes(raw[0:4], "little", signed=True),
-        front_right=int.from_bytes(raw[4:8], "little", signed=True),
-        back_left=int.from_bytes(raw[8:12], "little", signed=True),
-        back_right=int.from_bytes(raw[12:16], "little", signed=True),
+        front_left=int.from_bytes(raw[0:1], "little", signed=True),
+        front_right=int.from_bytes(raw[1:2], "little", signed=True),
+        back_left=int.from_bytes(raw[2:3], "little", signed=True),
+        back_right=int.from_bytes(raw[3:4], "little", signed=True),
     )
     return dat
 
 
-async def set_motors(client: BleakClient) -> None:
+async def set_motors(client: BleakClient, speeds: CapBotMotors, duration: int) -> None:
     """Set the target speed of the robot's wheels"""
     if not client.is_connected:
         await client.connect()
-    # FIXME: Update according to RCS spec in readme
-    await client.write_gatt_char(CapBotUuid.DRIVE, b"\x02", False)
+    raw = (
+        (speeds.front_left).to_bytes(1, "little", signed=True)
+        + (speeds.front_right).to_bytes(1, "little", signed=True)
+        + (speeds.back_left).to_bytes(1, "little", signed=True)
+        + (speeds.back_right).to_bytes(1, "little", signed=True)
+        + duration.to_bytes(4, "little", signed=False)
+    )
+    log.info(f"Raw drive data: {raw.hex()}")
+    assert len(raw) == 8
+    await client.write_gatt_char(CapBotUuid.DRIVE, raw, False)
 
 
 # -------------------------------------------------------------------------- #
@@ -256,7 +282,7 @@ def cli_sense(addr: Optional[str]) -> NoReturn:
         sys.exit(1)
 
 
-def cli_drive(addr: Optional[str]) -> NoReturn:
+def cli_drive(addr: Optional[str], speeds: CapBotMotors, duration: int) -> NoReturn:
     """
     # Drive a given robot
     """
@@ -277,7 +303,7 @@ def cli_drive(addr: Optional[str]) -> NoReturn:
 
         if robot is not None:
             client = await connect(robot)
-            await set_motors(client)
+            await set_motors(client, speeds, duration)
         else:
             log.error("No suitable robots found")
 
@@ -287,6 +313,7 @@ def cli_drive(addr: Optional[str]) -> NoReturn:
 
 class Command(StrEnum):
     """Possible subcommands of our command line interface"""
+
     SCAN = "scan"
     DRIVE = "drive"
     SENSE = "sense"
@@ -298,10 +325,14 @@ class Command(StrEnum):
             case Command.SCAN:
                 if args.address is not None:
                     log.warn("Address argument is unused for scan subcommand")
+                if args.speeds or args.duration is not None:
+                    log.warn("Speeds/duration argument is meaningless for scan subcommand")
                 cli_scan()
             case Command.DRIVE:
-                cli_drive(args.address)
+                cli_drive(args.address, args.speeds, args.duration)
             case Command.SENSE:
+                if args.speeds or args.duration is not None:
+                    log.warn("Speeds/duration argument is meaningless for sense subcommand")
                 cli_sense(args.address)
             case unknown:  # Default: matches everything not specified above
                 assert_never(unknown)
@@ -311,6 +342,8 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("command", choices=[cmd.lower() for cmd in Command])
     parser.add_argument("-a", "--address", type=str, required=False)
+    parser.add_argument("-s", "--speeds", type=CapBotMotors.motors_from_str, required=False)
+    parser.add_argument("-d", "--duration", type=int, required=False)
     parser.add_argument("-v", "--verbose", action="store_true")
 
     args = parser.parse_args()
