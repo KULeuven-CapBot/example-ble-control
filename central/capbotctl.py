@@ -3,7 +3,7 @@
 import asyncio
 import sys
 
-from typing import List, NoReturn, Optional, Self, assert_never
+from typing import List, NoReturn, Optional, assert_never
 from enum import StrEnum
 
 from argparse import ArgumentParser, Namespace
@@ -60,7 +60,8 @@ class CapBotUuid(StrEnum):
     DRIVE = normalize_uuid_32(0x00000031)  # Motor drive characteristic
     SPEED = normalize_uuid_32(0x00000032)  # Motor speed characteristic
     ANGLE = normalize_uuid_32(0x00000033)  # Motor angle characteristic
-    VOLTAGE = normalize_uuid_32(0x00000034)  # Voltage measurement characteristic
+    # Voltage measurement characteristic
+    VOLTAGE = normalize_uuid_32(0x00000034)
 
 
 class CapBotMotors:
@@ -83,21 +84,6 @@ class CapBotMotors:
             f"back_right: {self.back_right}"
             "}"
         )
-
-    @classmethod
-    def motors_from_str(cls, strings: str) -> Self:
-        """
-        Construct motor "struct" from comma separated string
-        """
-        strings = strings.replace("(", "").replace(")", "")
-        strings = strings.replace("{", "").replace("}", "")
-        strings = strings.replace("[", "").replace("]", "")
-        strings = strings.replace(" ", "")
-        ints = list(map(int, strings.split(",")))
-
-        if len(ints) != 4:
-            raise ValueError
-        return cls(ints[0], ints[1], ints[2], ints[3])
 
 
 class CapBotSensors:
@@ -284,12 +270,12 @@ def cli_sense(addr: Optional[str]) -> NoReturn:
         sys.exit(1)
 
 
-def cli_drive(addr: Optional[str], speeds: CapBotMotors, duration: int) -> NoReturn:
+def cli_drive(addr: Optional[str], speeds: List[int], duration: int) -> NoReturn:
     """
     # Drive a given robot
     """
 
-    async def drive(addr: Optional[str]) -> None:
+    async def drive(addr: Optional[str], speeds: CapBotMotors, duration: int) -> None:
         # Determine robot device
         if addr is not None:
             # Search for bot with given address
@@ -309,7 +295,9 @@ def cli_drive(addr: Optional[str], speeds: CapBotMotors, duration: int) -> NoRet
         else:
             log.error("No suitable robots found")
 
-    asyncio.run(drive(addr))
+    asyncio.run(
+        drive(addr, CapBotMotors(speeds[0], speeds[1], speeds[2], speeds[3]), duration)
+    )
     sys.exit(0)
 
 
@@ -326,33 +314,29 @@ class Command(StrEnum):
         match self:
             case Command.SCAN:
                 if cli_args.address is not None:
-                    log.warn("Address argument is unused for scan subcommand")
-                if cli_args.speeds or cli_args.duration is not None:
-                    log.warn(
-                        "Speeds/duration argument is meaningless for scan subcommand"
-                    )
+                    log.warn("Address argument is unused when scanning")
                 cli_scan()
             case Command.DRIVE:
-                cli_drive(cli_args.address, cli_args.speeds, cli_args.duration)
+                cli_drive(cli_args.address, cli_args.speed, cli_args.duration)
             case Command.SENSE:
-                if cli_args.speeds or cli_args.duration is not None:
-                    log.warn(
-                        "Speeds/duration argument is meaningless for sense subcommand"
-                    )
                 cli_sense(cli_args.address)
             case unknown:  # Default: matches everything not specified above
                 assert_never(unknown)
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument("command", choices=[cmd.lower() for cmd in Command])
+    parser = ArgumentParser(description="BLE based controller for CapBots")
+    parser.add_argument("-v", "--verbose", action="store_true", help="show verbose output")
     parser.add_argument("-a", "--address", type=str, required=False)
-    parser.add_argument(
-        "-s", "--speeds", type=CapBotMotors.motors_from_str, required=False
-    )
-    parser.add_argument("-d", "--duration", type=int, required=False)
-    parser.add_argument("-v", "--verbose", action="store_true")
+    subparsers = parser.add_subparsers(help='subcommand help', dest="command")
+
+    scan_parser = subparsers.add_parser(Command.SCAN.lower(), description="Scan for available robots")
+
+    sense_parser = subparsers.add_parser(Command.SENSE.lower(), description="Request info from a robot")
+
+    drive_parser = subparsers.add_parser(Command.DRIVE.lower(), description="Send drive command to a robot")
+    drive_parser.add_argument("speed", nargs=4, type=int)
+    drive_parser.add_argument("duration", type=int)
 
     args = parser.parse_args()
     Command(args.command).exec(args)
