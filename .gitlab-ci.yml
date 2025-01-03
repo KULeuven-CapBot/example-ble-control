@@ -1,7 +1,16 @@
-default:
-    image: python:latest
-
+build:
+    image: ubuntu:latest
+    variables:
+        DEBIAN_FRONTEND: noninteractive
+        PIPX_BIN_DIR: /usr/local/bin
+    before_script:
+        - apt-get update
+        - apt-get install python pipx device-tree-compiler cmake ninja-build
+        - pipx install west
+    script:
+        - west build -b capbot
 mypy:
+    image: python:latest
     stage: test
     before_script:
         - python -m pip install --upgrade pip
@@ -11,6 +20,7 @@ mypy:
         - mypy $(git ls-files '*.py')
 
 pylint:
+    image: python:latest
     stage: test
     before_script:
         - python -m pip install --upgrade pip
