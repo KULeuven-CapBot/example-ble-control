@@ -5,6 +5,7 @@
  * @date 2024-12-23
  */
 
+#include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
 
@@ -14,19 +15,32 @@
 #define PWM_MIN_DUTY_CYCLE 0          /** ns */
 #define PWM_MAX_DUTY_CYCLE PWM_PERIOD /** ns */
 
+#define MOTOR_RPM_MIN 0  /** RPM */
+#define MOTOR_RPM_MAX 80 /** RPM */
+
 #define HALL_TICKS_PER_REVOLUTION 1380
+
+/** @brief Time delta over which motor RPM is calculated */
+#define RPM_UPDATE_DELTA K_MSEC(20)
+#define RPM_THREAD_PRIORITY 7
+#define RPM_THREAD_STACKSIZE 265
+
+#define ABS(n) ((n) > 0 ? (n) : -(n))
+#define CLIP(n, min, max) ((n) > (max) ? (max) : ((n) < (min) ? (min) : (n)))
+#define MAP(n, in_min, in_max, out_min, out_max) ((n - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
 
 /**
  * @brief Convert from RPM to PWM duty-cycle
  */
 static inline uint32_t rpm_to_duty_cycle(int rpm)
 {
-    const uint32_t max_rpm = 80;
-    const uint32_t min_rpm = 0;
-    rpm = (rpm < min_rpm) ? min_rpm : (rpm > max_rpm) ? max_rpm
-                                                      : rpm;
-    uint32_t duty_cycle = min_rpm + rpm * (PWM_MAX_DUTY_CYCLE - PWM_MIN_DUTY_CYCLE) / (max_rpm - min_rpm);
-    return duty_cycle;
+    uint32_t rpm_absolute, rpm_clipped, rpm_scaled;
+
+    rpm_absolute = ABS(rpm);
+    rpm_clipped = CLIP(rpm_absolute, MOTOR_RPM_MIN, MOTOR_RPM_MAX);
+    rpm_scaled = MAP(rpm_clipped, MOTOR_RPM_MIN, MOTOR_RPM_MAX, PWM_MIN_DUTY_CYCLE, PWM_MAX_DUTY_CYCLE);
+
+    return rpm_scaled;
 }
 
 /** @brief Holds a motor's GPIO handles */
@@ -202,6 +216,10 @@ static inline int get_motor_rpm(struct motor *motor)
     return (step_d * 60000) / (int64_t)k_ticks_to_ms_near64(time_d * HALL_TICKS_PER_REVOLUTION);
 }
 
+// -----------------------------------------------------------------------------
+// Motor control: interrupts and threads
+// -----------------------------------------------------------------------------
+
 /**
  * @brief Generic hall sensor interrupt handler (called by motor specific ones)
  */
@@ -224,6 +242,23 @@ void mfr_hall_isr(const struct device *dev, struct gpio_callback *cb, uint32_t p
 void mfl_hall_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins) { hall_isr(&mfl); }
 void mbr_hall_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins) { hall_isr(&mbr); }
 void mbl_hall_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins) { hall_isr(&mbl); }
+
+/**
+ * @brief Periodically update timing info for calculating (average) motor speeds
+ */
+void t_motor_timing_update(void *, void *, void *)
+{
+    for (;;)
+    {
+        update_motor_timing(&mfr, k_uptime_ticks());
+        update_motor_timing(&mfl, k_uptime_ticks());
+        update_motor_timing(&mbr, k_uptime_ticks());
+        update_motor_timing(&mbl, k_uptime_ticks());
+
+        k_sleep(RPM_UPDATE_DELTA);
+    }
+}
+K_THREAD_DEFINE(motor_timing_update, RPM_THREAD_STACKSIZE, t_motor_timing_update, NULL, NULL, NULL, RPM_THREAD_PRIORITY, 0, 0);
 
 // -----------------------------------------------------------------------------
 // Motor control: API (public functions)
@@ -267,21 +302,14 @@ int cb_motor_init(void)
 void cb_set_motor_speed(cb_motor_speed_t *speeds)
 {
     uint8_t mfl_dir = speeds->front_left > 0;
-    uint32_t mfl_rpm = mfl_dir ? speeds->front_left : -speeds->front_left;
-
     uint8_t mfr_dir = speeds->front_right > 0;
-    uint32_t mfr_rpm = mfr_dir ? speeds->front_right : -speeds->front_right;
-
     uint8_t mbl_dir = speeds->back_left > 0;
-    uint32_t mbl_rpm = mbl_dir ? speeds->back_left : -speeds->back_left;
-
     uint8_t mbr_dir = speeds->back_right > 0;
-    uint32_t mbr_rpm = mbr_dir ? speeds->back_right : -speeds->back_right;
 
-    set_motor_direction(&mfl, mfl_dir, rpm_to_duty_cycle(mfl_rpm));
-    set_motor_direction(&mfr, mfr_dir, rpm_to_duty_cycle(mfr_rpm));
-    set_motor_direction(&mbl, mbl_dir, rpm_to_duty_cycle(mbl_rpm));
-    set_motor_direction(&mbr, mbr_dir, rpm_to_duty_cycle(mbr_rpm));
+    set_motor_direction(&mfl, mfl_dir, rpm_to_duty_cycle(speeds->front_left));
+    set_motor_direction(&mfr, mfr_dir, rpm_to_duty_cycle(speeds->front_right));
+    set_motor_direction(&mbl, mbl_dir, rpm_to_duty_cycle(speeds->back_left));
+    set_motor_direction(&mbr, mbr_dir, rpm_to_duty_cycle(speeds->back_right));
 }
 
 void cb_stop(void)
