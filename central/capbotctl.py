@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
+"""Control CapBots using a custom BLE GATT service."""
+
 import asyncio
 import sys
-
-from typing import List, NoReturn, Optional, assert_never
-from enum import StrEnum
-
 from argparse import ArgumentParser, Namespace
+from enum import StrEnum
+from typing import List, NoReturn, Optional, assert_never
 
-from bleak import BleakScanner, BleakClient
+from bleak import BleakClient, BleakScanner
 from bleak.backends.device import BLEDevice
-from bleak.uuids import normalize_uuid_32
 from bleak.exc import BleakDeviceNotFoundError
+from bleak.uuids import normalize_uuid_32
 
 # -------------------------------------------------------------------------- #
 #                                   Logging                                  #
@@ -19,30 +19,31 @@ from bleak.exc import BleakDeviceNotFoundError
 
 
 class Log:
-    """Rudimentary logging"""
+    """Rudimentary logging interface."""
 
     def __init__(self) -> None:
+        """Construct a simple logging interface."""
         self._info = False
 
     def enable_info(self, en: bool) -> None:
-        """Enable printing info to stdout"""
+        """Enable printing info to stdout."""
         self._info = en
 
     def info(self, msg: str) -> None:
-        """Log info message"""
+        """Log info message."""
         if self._info:
             print(f"[INFO] {msg}")
 
     def warn(self, msg: str) -> None:
-        """Log warning"""
+        """Log warning."""
         print(f"[WARNING] {msg}")
 
     def error(self, msg: str) -> None:
-        """Log error"""
+        """Log error."""
         print(f"[ERROR] {msg}")
 
     def print(self, msg: str) -> None:
-        """Unconditionally log an arbitrary message"""
+        """Unconditionally log an arbitrary message."""
         print(msg)
 
 
@@ -54,7 +55,7 @@ log = Log()
 
 
 class CapBotUuid(StrEnum):
-    """Enum with different UUIDs for our "Robot Control Service" """
+    """Enum with different UUIDs for our "Robot Control Service"."""
 
     SERVICE = normalize_uuid_32(0x00000030)  # Robot Control Service
     DRIVE = normalize_uuid_32(0x00000031)  # Motor drive characteristic
@@ -65,11 +66,16 @@ class CapBotUuid(StrEnum):
 
 
 class CapBotMotors:
-    """Structure to hold an integer for each motor"""
+    """Structure to hold an integer for each motor."""
 
     def __init__(
-        self, front_left: int, front_right: int, back_left: int, back_right: int
+        self,
+        front_left: int,
+        front_right: int,
+        back_left: int,
+        back_right: int,
     ):
+        """Create robot "struct" with given values."""
         self.front_left: int = front_left
         self.front_right: int = front_right
         self.back_left: int = back_left
@@ -87,9 +93,10 @@ class CapBotMotors:
 
 
 class CapBotSensors:
-    """Structure to hold a robot's sensor values"""
+    """Structure to hold a robot's sensor values."""
 
     def __init__(self, address: str):
+        """Create a sensor "struct" for a robot with given address."""
         self.address: str = address
         self.voltage: float = 0
         self.angles: CapBotMotors = CapBotMotors(0, 0, 0, 0)
@@ -105,7 +112,7 @@ class CapBotSensors:
 
 
 async def scan() -> List[BLEDevice]:
-    """Scan for BLE devices and filter out robots"""
+    """Scan for BLE devices and filter out robots."""
     devices: List[BLEDevice] = await BleakScanner(
         service_uuids=[CapBotUuid.SERVICE]
     ).discover(timeout=5)
@@ -118,7 +125,7 @@ async def scan() -> List[BLEDevice]:
 
 
 async def find(addr: str) -> Optional[BLEDevice]:
-    """Search for a robot with given address"""
+    """Search for a robot with given address."""
     device = await BleakScanner(
         service_uuids=[CapBotUuid.SERVICE]
     ).find_device_by_address(addr, timeout=5)
@@ -128,12 +135,12 @@ async def find(addr: str) -> Optional[BLEDevice]:
 
 
 async def is_robot(device: BLEDevice) -> bool:
-    """Determine if a device is a robot"""
+    """Determine if a device is a robot."""
     return CapBotUuid.SERVICE in device.details["props"]["UUIDs"]
 
 
 async def connect(device: BLEDevice) -> BleakClient:
-    """Connect to the given device"""
+    """Connect to the given device."""
     client = BleakClient(device, timeout=5)
     log.info(f"Connecting to bot: {device.address}")
     try:
@@ -146,7 +153,7 @@ async def connect(device: BLEDevice) -> BleakClient:
 
 
 async def read_voltage(client: BleakClient) -> float:
-    """Read the robot's capacitor voltage"""
+    """Read the robot's capacitor voltage."""
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.VOLTAGE)
@@ -157,7 +164,7 @@ async def read_voltage(client: BleakClient) -> float:
 
 
 async def read_angle(client: BleakClient) -> CapBotMotors:
-    """Get the angle of the robot's wheels"""
+    """Get the angle of the robot's wheels."""
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.ANGLE)
@@ -175,7 +182,7 @@ async def read_angle(client: BleakClient) -> CapBotMotors:
 
 
 async def read_speed(client: BleakClient) -> CapBotMotors:
-    """Get the speed of the robot's wheels"""
+    """Get the speed of the robot's wheels."""
     if not client.is_connected:
         await client.connect()
     raw = await client.read_gatt_char(CapBotUuid.SPEED)
@@ -191,8 +198,10 @@ async def read_speed(client: BleakClient) -> CapBotMotors:
     return dat
 
 
-async def set_motors(client: BleakClient, speeds: CapBotMotors, duration: int) -> None:
-    """Set the target speed of the robot's wheels"""
+async def set_motors(
+    client: BleakClient, speeds: CapBotMotors, duration: int
+) -> None:
+    """Set the target speed of the robot's wheels."""
     if not client.is_connected:
         await client.connect()
     raw = (
@@ -214,10 +223,10 @@ async def set_motors(client: BleakClient, speeds: CapBotMotors, duration: int) -
 
 def cli_scan() -> NoReturn:
     """
-    # Scan for available robots
+    Scan for available robots.
 
-    Scans for available BLE devices, filter out robots and print their address
-    to stdout
+    Scans for available BLE devices, filters out devices that expose a "robot
+    control service" and prints their address to stdout
     """
     bots = asyncio.run(scan())
 
@@ -232,9 +241,7 @@ def cli_scan() -> NoReturn:
 
 
 def cli_sense(addr: Optional[str]) -> NoReturn:
-    """
-    # Read the different sensors on the robot
-    """
+    """Read the different sensors on the robot."""
 
     async def sense(addr: Optional[str]) -> Optional[CapBotSensors]:
         # Determine robot device
@@ -270,12 +277,14 @@ def cli_sense(addr: Optional[str]) -> NoReturn:
         sys.exit(1)
 
 
-def cli_drive(addr: Optional[str], speeds: List[int], duration: int) -> NoReturn:
-    """
-    # Drive a given robot
-    """
+def cli_drive(
+    addr: Optional[str], speeds: List[int], duration: int
+) -> NoReturn:
+    """Drive a robot."""
 
-    async def drive(addr: Optional[str], speeds: CapBotMotors, duration: int) -> None:
+    async def drive(
+        addr: Optional[str], speeds: CapBotMotors, duration: int
+    ) -> None:
         # Determine robot device
         if addr is not None:
             # Search for bot with given address
@@ -296,20 +305,24 @@ def cli_drive(addr: Optional[str], speeds: List[int], duration: int) -> NoReturn
             log.error("No suitable robots found")
 
     asyncio.run(
-        drive(addr, CapBotMotors(speeds[0], speeds[1], speeds[2], speeds[3]), duration)
+        drive(
+            addr,
+            CapBotMotors(speeds[0], speeds[1], speeds[2], speeds[3]),
+            duration,
+        )
     )
     sys.exit(0)
 
 
 class Command(StrEnum):
-    """Possible subcommands of our command line interface"""
+    """Possible subcommands of our command line interface."""
 
     SCAN = "scan"
     DRIVE = "drive"
     SENSE = "sense"
 
     def exec(self, cli_args: Namespace) -> None:
-        """Execute the given subcommand"""
+        """Execute the given subcommand."""
         log.enable_info(cli_args.verbose)
         match self:
             case Command.SCAN:
@@ -326,17 +339,31 @@ class Command(StrEnum):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="BLE based controller for CapBots")
-    parser.add_argument("-v", "--verbose", action="store_true", help="show verbose output")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="show verbose output"
+    )
     parser.add_argument("-a", "--address", type=str, required=False)
-    subparsers = parser.add_subparsers(help='subcommand help', dest="command")
+    subparsers = parser.add_subparsers(help="subcommand help", dest="command")
 
-    scan_parser = subparsers.add_parser(Command.SCAN.lower(), description="Scan for available robots")
+    scan_parser = subparsers.add_parser(
+        Command.SCAN.lower(), description="Scan for available robots"
+    )
 
-    sense_parser = subparsers.add_parser(Command.SENSE.lower(), description="Request info from a robot")
+    sense_parser = subparsers.add_parser(
+        Command.SENSE.lower(), description="Request info from a robot"
+    )
 
-    drive_parser = subparsers.add_parser(Command.DRIVE.lower(), description="Send drive command to a robot")
+    drive_parser = subparsers.add_parser(
+        Command.DRIVE.lower(), description="Send drive command to a robot"
+    )
     drive_parser.add_argument("speed", nargs=4, type=int)
-    drive_parser.add_argument("-d", "--duration", type=int, help="time before stopping again (ms)", required=True)
+    drive_parser.add_argument(
+        "-d",
+        "--duration",
+        type=int,
+        help="time before stopping again (ms)",
+        required=True,
+    )
 
     args = parser.parse_args()
     Command(args.command).exec(args)

@@ -157,6 +157,9 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
+# ruff
+.ruff_cache/
+
 # Pyre type checker
 .pyre/
 
@@ -173,21 +176,21 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-#-----------------------------------------------------------------------------------------#
-#                                    VsCode gitignore                                     #
-#                                                                                         #
-# Source: https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore #
-#-----------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------#
+#                              VsCode gitignore                               #
+#-----------------------------------------------------------------------------#
 
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# Settings etc.
+.vscode/
 !.vscode/*.code-snippets
 
 # Local History for Visual Studio Code
 .history/
 
-# Built Visual Studio Code Extensions
-*.vsix
+#-----------------------------------------------------------------------------#
+#                              Zephyr gitignore                               #
+#-----------------------------------------------------------------------------#
+
+build/
+deps/
+.west/
