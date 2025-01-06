@@ -208,7 +208,6 @@ static inline int get_motor_angle(struct motor *motor)
  */
 static inline int get_motor_rpm(struct motor *motor)
 {
-    // FIXME: Mutex timing info?
     int64_t step_d = motor->timing.step_delta;
     uint64_t time_d = motor->timing.time_delta;
 

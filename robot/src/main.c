@@ -42,7 +42,6 @@ ble_status_t ble_status(void)
 void update_ble_status(ble_status_t status)
 {
     k_mutex_lock(&ble_status_mutex, K_FOREVER);
-    // TODO: Transitions using FSM?
     ble_status_g = status;
     k_mutex_unlock(&ble_status_mutex);
 }
@@ -187,9 +186,9 @@ uint16_t ble_led_pattern(ble_status_t status)
     case BLE_ADVERTISING:
         return 0b1111111100000000;
     case BLE_CONNECTED:
-        return 0b1111111111111111;
-    case BLE_ERROR:
         return 0b1010101010101010;
+    case BLE_ERROR:
+        return 0b1111111111111111;
     default:
         LOG_WRN("Could not determine BLE status led pattern, using ERROR pattern instead");
         return ble_led_pattern(BLE_ERROR);
@@ -218,7 +217,7 @@ void t_status_led_ep(void *, void *, void *)
     }
 }
 
-#define T_STATUS_LED_STACKSIZE 128
+#define T_STATUS_LED_STACKSIZE 256
 #define T_STATUS_LED_PRIORITY 10
 #define T_STATUS_LED_OPTIONS 0
 #define T_STATUS_LED_DELAY 0

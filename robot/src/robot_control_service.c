@@ -36,7 +36,7 @@ static ssize_t rcs_drive(struct bt_conn *conn, const struct bt_gatt_attr *attr, 
     cb_motor_speed_t speeds = {.front_left = pkt.fl, .front_right = pkt.fr, .back_left = pkt.bl, .back_right = pkt.br};
     uint32_t duration = pkt.dur;
 
-    LOG_DBG("Setting motors: {%d %d %d %d} for %u milliseconds", speeds.front_left, speeds.front_right, speeds.back_left, speeds.back_right, duration);
+    LOG_INF("Setting motors: {%d %d %d %d} for %u milliseconds", speeds.front_left, speeds.front_right, speeds.back_left, speeds.back_right, duration);
     cb_set_motor_speed(&speeds);
     k_sleep(K_MSEC(duration)); // BUG: Other characteristics can't be read during this delay?
     LOG_DBG("Setting motors: {0 0 0 0}");
@@ -56,6 +56,7 @@ static ssize_t rcs_speed_read(struct bt_conn *conn, const struct bt_gatt_attr *a
     cb_motor_speed_t speeds;
     cb_get_motor_speed(&speeds);
 
+    LOG_INF("Reporting motor speeds: {%d %d %d %d}", speeds.front_left, speeds.front_right, speeds.back_left, speeds.back_right);
     rcs_speed_t pkt = {.fl = speeds.front_left, .fr = speeds.front_right, .bl = speeds.back_left, .br = speeds.back_right};
     return bt_gatt_attr_read(conn, attr, buf, len, offset, &pkt, sizeof(pkt));
 }
@@ -71,6 +72,7 @@ static ssize_t rcs_angle_read(struct bt_conn *conn, const struct bt_gatt_attr *a
     cb_motor_angle_t angles;
     cb_get_motor_angle(&angles);
 
+    LOG_INF("Reporting motor angles: {%d %d %d %d}", angles.front_left, angles.front_right, angles.back_left, angles.back_right);
     rcs_angle_t pkt = {.fl = angles.front_left, .fr = angles.front_right, .bl = angles.back_left, .br = angles.back_right};
     return bt_gatt_attr_read(conn, attr, buf, len, offset, &pkt, sizeof(pkt));
 }
