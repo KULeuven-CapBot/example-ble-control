@@ -21,9 +21,12 @@
 #define HALL_TICKS_PER_REVOLUTION 1380
 
 /** @brief Time delta over which motor RPM is calculated */
-#define RPM_UPDATE_DELTA K_MSEC(20)
-#define RPM_THREAD_PRIORITY 7
-#define RPM_THREAD_STACKSIZE 265
+K_MUTEX_DEFINE(motor_timing_mutex);
+#define T_RPM_STACKSIZE 256
+#define T_RPM_PRIORITY 7
+#define T_RPM_OPTIONS 0
+#define T_RPM_DELAY 0
+#define T_RPM_UPDATE_DELTA K_MSEC(20)
 
 #define ABS(n) ((n) > 0 ? (n) : -(n))
 #define CLIP(n, min, max) ((n) > (max) ? (max) : ((n) < (min) ? (min) : (n)))
@@ -188,10 +191,14 @@ static inline void set_motor_stop(const struct motor *motor)
  */
 static inline void update_motor_timing(struct motor *motor, uint64_t time_curr)
 {
-    motor->timing.step_delta = motor->step_count - motor->timing.step_prev;
-    motor->timing.step_prev = motor->step_count;
-    motor->timing.time_delta = time_curr - motor->timing.time_prev;
-    motor->timing.time_prev = time_curr;
+    if (k_mutex_lock(&motor_timing_mutex, K_FOREVER) == 0)
+    {
+        motor->timing.step_delta = motor->step_count - motor->timing.step_prev;
+        motor->timing.step_prev = motor->step_count;
+        motor->timing.time_delta = time_curr - motor->timing.time_prev;
+        motor->timing.time_prev = time_curr;
+        k_mutex_unlock(&motor_timing_mutex);
+    }
 }
 
 /**
@@ -208,8 +215,14 @@ static inline int get_motor_angle(struct motor *motor)
  */
 static inline int get_motor_rpm(struct motor *motor)
 {
+    if (k_mutex_lock(&motor_timing_mutex, T_RPM_UPDATE_DELTA))
+    {
+        // Error: could not lock mutex
+        return -1;
+    }
     int64_t step_d = motor->timing.step_delta;
     uint64_t time_d = motor->timing.time_delta;
+    k_mutex_unlock(&motor_timing_mutex);
 
     // TODO: Verify conversion (below is an educated guess)
     return (step_d * 60000) / (int64_t)k_ticks_to_ms_near64(time_d * HALL_TICKS_PER_REVOLUTION);
@@ -245,7 +258,7 @@ void mbl_hall_isr(const struct device *dev, struct gpio_callback *cb, uint32_t p
 /**
  * @brief Periodically update timing info for calculating (average) motor speeds
  */
-void t_motor_timing_update(void *, void *, void *)
+void t_rpm_entry_point(void *, void *, void *)
 {
     for (;;)
     {
@@ -254,10 +267,10 @@ void t_motor_timing_update(void *, void *, void *)
         update_motor_timing(&mbr, k_uptime_ticks());
         update_motor_timing(&mbl, k_uptime_ticks());
 
-        k_sleep(RPM_UPDATE_DELTA);
+        k_sleep(T_RPM_UPDATE_DELTA);
     }
 }
-K_THREAD_DEFINE(motor_timing_update, RPM_THREAD_STACKSIZE, t_motor_timing_update, NULL, NULL, NULL, RPM_THREAD_PRIORITY, 0, 0);
+K_THREAD_DEFINE(motor_timing_update, T_RPM_STACKSIZE, t_rpm_entry_point, NULL, NULL, NULL, T_RPM_PRIORITY, T_RPM_OPTIONS, T_RPM_DELAY);
 
 // -----------------------------------------------------------------------------
 // Motor control: API (public functions)
