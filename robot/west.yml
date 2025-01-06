@@ -18,4 +18,4 @@ manifest:
                   - zephyr
 
     self:
-        path: peripheral
+        path: robot

@@ -1,14 +1,15 @@
 = CapBot control using Bluetooth Low Energy
-:toc: left
 :icons: font
 :lang: en
 
 WARNING: This is currently a *work in progress*, it's by no means finished nor stable.
 
+:toc: left
+
 This repo can be divided in two main parts:
 
-* CapBot firmware that exposes a GATT server (i.e. the BLE link:./peripheral/[peripheral])
-* A python program that connects to this GATT server (i.e. the BLE link:./central/[central])
+* link:./robot/[CapBot firmware] that exposes a GATT server (i.e. the BLE peripheral)
+* A link:./controller/[command line interface] that connects to this GATT server (i.e. the BLE central)
 
 == Robot Control Service
 
@@ -100,10 +101,11 @@ s| Vcap
 
 * `VOLT`: Capacitor voltage (mV)
 
-== Python client
+== Robot firmware
 
-TODO
+The robot firmware is based on link:https://github.com/nrfconnect/sdk-zephyr[Nordic's flavor of zephyr] and their link:https://docs.nordicsemi.com/bundle/ncs-latest[nRF Connect SDK].
 
-== Firmware
+== Command line interface
 
-TODO
+The controller CLI is written in python and connects to CapBots over BLE.
+It relies on the link:https://bleak.readthedocs.io/en/latest/[bleak] package for managing these connections.
