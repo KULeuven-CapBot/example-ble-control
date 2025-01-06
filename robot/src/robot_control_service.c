@@ -16,6 +16,53 @@ LOG_MODULE_REGISTER(robot_control_service, LOG_LEVEL_DBG);
 // Motor drive characteristic
 // -----------------------------------------------------------------------------
 
+#define T_DRIVE_TIMEOUT_PRIORITY 7
+K_THREAD_STACK_DEFINE(t_drive_timeout_stack, 512);
+static struct k_thread t_drive_timeout;
+static struct
+{
+    cb_motor_speed_t speeds;
+    k_timeout_t duration;
+} t_drive_timeout_data;
+
+void t_drive_timeout_ep(void *, void *, void *)
+{
+    LOG_DBG("Setting motors: {%d, %d, %d, %d}",
+            t_drive_timeout_data.speeds.front_left,
+            t_drive_timeout_data.speeds.front_right,
+            t_drive_timeout_data.speeds.back_left,
+            t_drive_timeout_data.speeds.back_right);
+    cb_set_motor_speed(&t_drive_timeout_data.speeds);
+    LOG_DBG("Waiting for timeout");
+    k_sleep(t_drive_timeout_data.duration);
+    LOG_DBG("Timeout reached, stopping motors");
+    cb_stop();
+}
+
+void drive_with_timeout(cb_motor_speed_t *speeds, k_timeout_t timeout)
+{
+    static k_tid_t drive_tid = 0;
+    if (drive_tid != 0)
+    {
+        LOG_DBG("Aborting previous drive thread");
+        k_thread_abort(drive_tid);
+    }
+    LOG_DBG("Creating drive thread");
+    t_drive_timeout_data.speeds.front_left = speeds->front_left;
+    t_drive_timeout_data.speeds.front_right = speeds->front_right;
+    t_drive_timeout_data.speeds.back_left = speeds->back_left;
+    t_drive_timeout_data.speeds.back_right = speeds->back_right;
+    t_drive_timeout_data.duration = timeout;
+    drive_tid = k_thread_create(&t_drive_timeout,
+                                t_drive_timeout_stack,
+                                 K_THREAD_STACK_SIZEOF(t_drive_timeout_stack),
+                                t_drive_timeout_ep,
+                                NULL, NULL, NULL,
+                                T_DRIVE_TIMEOUT_PRIORITY,
+                                0,
+                                K_NO_WAIT);
+}
+
 static ssize_t rcs_drive(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags)
 {
     LOG_DBG("handle: %u, conn: %p", attr->handle, (void *)conn);
@@ -34,13 +81,7 @@ static ssize_t rcs_drive(struct bt_conn *conn, const struct bt_gatt_attr *attr, 
 
     rcs_drive_t pkt = *((rcs_drive_t *)buf);
     cb_motor_speed_t speeds = {.front_left = pkt.fl, .front_right = pkt.fr, .back_left = pkt.bl, .back_right = pkt.br};
-    uint32_t duration = pkt.dur;
-
-    LOG_INF("Setting motors: {%d %d %d %d} for %u milliseconds", speeds.front_left, speeds.front_right, speeds.back_left, speeds.back_right, duration);
-    cb_set_motor_speed(&speeds);
-    k_sleep(K_MSEC(duration)); // BUG: Other characteristics can't be read during this delay?
-    LOG_DBG("Setting motors: {0 0 0 0}");
-    cb_stop();
+    drive_with_timeout(&speeds, K_MSEC(pkt.dur));
 
     return len;
 }
@@ -118,5 +159,4 @@ BT_GATT_SERVICE_DEFINE(
     BT_GATT_CHARACTERISTIC(BT_UUID_RCS_VOLT,
                            BT_GATT_CHRC_READ,
                            BT_GATT_PERM_READ,
-                           rcs_volt_read, NULL, NULL),
-);
+                           rcs_volt_read, NULL, NULL), );
