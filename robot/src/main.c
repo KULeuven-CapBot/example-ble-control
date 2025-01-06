@@ -7,6 +7,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/conn.h>
 
 #include "capbot.h"
 #include "robot_control_service.h"
@@ -65,6 +66,18 @@ static const struct bt_data rsp_data[] = {
     BT_DATA(BT_DATA_NAME_COMPLETE, BLE_DEVICE_NAME, BLE_DEVICE_NAME_LEN),
 };
 
+/** @brief On BLE connected callback */
+static void on_connected(struct bt_conn *conn, uint8_t err);
+
+/** @brief On BLE disconnected callback */
+static void on_disconnected(struct bt_conn *conn, uint8_t reason);
+
+/** @brief BLE connection callbacks */
+struct bt_conn_cb connection_cb = {
+    .connected = on_connected,
+    .disconnected = on_disconnected,
+};
+
 // -----------------------------------------------------------------------------
 // System initialization
 // -----------------------------------------------------------------------------
@@ -102,6 +115,7 @@ int sys_init(void)
         update_ble_status(BLE_ERROR);
         return -1;
     }
+    bt_conn_cb_register(&connection_cb);
     LOG_INF("Bluetooth initialization done");
 
     if (bt_le_adv_start(BT_LE_ADV_CONN, adv_data, ARRAY_SIZE(adv_data), rsp_data, ARRAY_SIZE(rsp_data)))
@@ -117,6 +131,41 @@ int sys_init(void)
 }
 
 SYS_INIT(sys_init, APPLICATION, 5);
+
+// -----------------------------------------------------------------------------
+// BLE connection callbacks
+// -----------------------------------------------------------------------------
+
+static void on_connected(struct bt_conn *conn, uint8_t err)
+{
+    char addr[BT_ADDR_LE_STR_LEN];
+    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+    if (err)
+    {
+        LOG_ERR("Failed to connect to %s (%u)", addr, err);
+        return;
+    }
+    LOG_INF("Connected: %s", addr);
+
+    update_ble_status(BLE_CONNECTED);
+}
+
+static void on_disconnected(struct bt_conn *conn, uint8_t reason)
+{
+    char addr[BT_ADDR_LE_STR_LEN];
+    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+    LOG_INF("Disconnected: %s (reason 0x%02x)", addr, reason);
+
+    if (bt_le_adv_start(BT_LE_ADV_CONN, adv_data, ARRAY_SIZE(adv_data), rsp_data, ARRAY_SIZE(rsp_data)))
+    {
+        LOG_ERR("BLE advertising failed to start");
+        update_ble_status(BLE_ERROR);
+        return;
+    }
+    update_ble_status(BLE_ADVERTISING);
+    LOG_INF("BLE advertising started");
+}
 
 // -----------------------------------------------------------------------------
 // Status led task
@@ -169,7 +218,7 @@ void t_status_led_ep(void *, void *, void *)
     }
 }
 
-#define T_STATUS_LED_STACKSIZE 256
+#define T_STATUS_LED_STACKSIZE 128
 #define T_STATUS_LED_PRIORITY 10
 #define T_STATUS_LED_OPTIONS 0
 #define T_STATUS_LED_DELAY 0
