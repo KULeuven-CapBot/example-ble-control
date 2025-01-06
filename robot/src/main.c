@@ -41,16 +41,35 @@ ble_status_t ble_status(void)
 void update_ble_status(ble_status_t status)
 {
     k_mutex_lock(&ble_status_mutex, K_FOREVER);
-    // TODO: FSM?
+    // TODO: Transitions using FSM?
     ble_status_g = status;
     k_mutex_unlock(&ble_status_mutex);
 }
 
 // -----------------------------------------------------------------------------
+// BLE related constants
+// -----------------------------------------------------------------------------
+
+#define BLE_DEVICE_NAME "CapBot"
+#define BLE_DEVICE_NAME_LEN (sizeof(BLE_DEVICE_NAME) - 1)
+
+/** @brief BLE Advertisement data */
+static const struct bt_data adv_data[] = {
+    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+    BT_DATA(BT_DATA_NAME_COMPLETE, BLE_DEVICE_NAME, BLE_DEVICE_NAME_LEN),
+};
+
+/** @brief BLE Scan response data */
+static const struct bt_data rsp_data[] = {
+    BT_DATA_BYTES(BT_DATA_UUID128_SOME, BT_UUID_RCS_VAL),
+    BT_DATA(BT_DATA_NAME_COMPLETE, BLE_DEVICE_NAME, BLE_DEVICE_NAME_LEN),
+};
+
+// -----------------------------------------------------------------------------
 // System initialization
 // -----------------------------------------------------------------------------
 
-int t_sys_init_ep(void)
+int sys_init(void)
 {
     LOG_DBG("Initializing on-board IO ...");
     if (cb_io_init())
@@ -76,64 +95,28 @@ int t_sys_init_ep(void)
     }
     LOG_INF("Motor initialization done");
 
-    return 0;
-}
-
-SYS_INIT_NAMED(sys_init, t_sys_init_ep, APPLICATION, 5);
-
-// -----------------------------------------------------------------------------
-// Bluetooth low energy task
-//
-// Initialize robot's BLE GATT service
-// -----------------------------------------------------------------------------
-
-#define DEVICE_NAME "CapBot"
-#define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
-
-/** @brief BLE Advertisement data */
-static const struct bt_data adv_data[] = {
-    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-    BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
-};
-
-/** @brief BLE Scan response data */
-static const struct bt_data rsp_data[] = {
-    BT_DATA_BYTES(BT_DATA_UUID128_SOME, BT_UUID_RCS_VAL),
-    BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
-};
-
-void t_ble_init_ep(void *, void *, void *)
-{
-    int err = 0;
     LOG_DBG("Initializing bluetooth ...");
-
-    err = bt_enable(NULL);
-    if (err)
+    if (bt_enable(NULL))
     {
-        LOG_ERR("Bluetooth initialization failed (err %d)", err);
+        LOG_ERR("Bluetooth initialization failed");
         update_ble_status(BLE_ERROR);
-        return;
+        return -1;
     }
-    LOG_INF("Bluetooth initialized");
+    LOG_INF("Bluetooth initialization done");
 
-    err = bt_le_adv_start(BT_LE_ADV_CONN, adv_data, ARRAY_SIZE(adv_data), rsp_data, ARRAY_SIZE(rsp_data));
-    if (err)
+    if (bt_le_adv_start(BT_LE_ADV_CONN, adv_data, ARRAY_SIZE(adv_data), rsp_data, ARRAY_SIZE(rsp_data)))
     {
-        LOG_ERR("BLE advertising failed to start (err %d)", err);
+        LOG_ERR("BLE advertising failed to start");
         update_ble_status(BLE_ERROR);
-        return;
+        return -1;
     }
     update_ble_status(BLE_ADVERTISING);
     LOG_INF("BLE advertising started");
 
-    return;
+    return 0;
 }
 
-#define T_BLE_INIT_STACKSIZE 1024
-#define T_BLE_INIT_PRIORITY 1
-#define T_BLE_INIT_OPTIONS 0
-#define T_BLE_INIT_DELAY 0
-K_THREAD_DEFINE(ble_init, T_BLE_INIT_STACKSIZE, t_ble_init_ep, NULL, NULL, NULL, T_BLE_INIT_PRIORITY, T_BLE_INIT_OPTIONS, T_BLE_INIT_DELAY);
+SYS_INIT(sys_init, APPLICATION, 5);
 
 // -----------------------------------------------------------------------------
 // Status led task

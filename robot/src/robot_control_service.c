@@ -117,5 +117,4 @@ BT_GATT_SERVICE_DEFINE(
                            BT_GATT_CHRC_READ,
                            BT_GATT_PERM_READ,
                            rcs_volt_read, NULL, NULL),
-    // TODO: Notify when V drops below setvalue
 );
