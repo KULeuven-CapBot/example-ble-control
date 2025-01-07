@@ -1,8 +1,8 @@
-build-v2.7.0:
+build:
     stage: build
     parallel:
         matrix:
-            - NCS_VERSION: [v2.7.0, v2.8.0]
+            - NCS_VERSION: [v2.7.0, v2.8.0, v2.9.0]
     image: ghcr.io/nrfconnect/sdk-nrf-toolchain:$NCS_VERSION
     variables:
         DEBIAN_FRONTEND: noninteractive # CI is a non-interactive shell
