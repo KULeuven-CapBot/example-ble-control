@@ -1,0 +1,21 @@
+# Source: inspired by https://youtu.be/PVhu5rg_SGY?si=bh-u1Fmv55d89Slv
+
+manifest:
+    version: 0.13
+
+    projects:
+        # The nRF Connect SDK
+        - name: nrf
+          url: https://github.com/nrfconnect/sdk-nrf
+          revision: v2.8.0
+          import:
+              file: west.yml
+              path-prefix: deps
+              name-allowlist:
+                  - cmsis
+                  - hal_nordic
+                  - nrfxlib
+                  - zephyr
+
+    self:
+        path: robot

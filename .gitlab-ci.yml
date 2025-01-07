@@ -1,16 +1,19 @@
-build:
+build-v2.7.0:
     stage: build
-    image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v2.7.0
+    parallel:
+        matrix:
+            - NCS_VERSION: [v2.7.0, v2.8.0]
+    image: ghcr.io/nrfconnect/sdk-nrf-toolchain:$NCS_VERSION
     variables:
         DEBIAN_FRONTEND: noninteractive # CI is a non-interactive shell
         ACCEPT_JLINK_LICENSE: 0         # JLink isn't needed for building
     script:
         - cd robot
-        - west init --local --manifest-file west-ncs2.7.0.yml
+        - west init --local --manifest-file west-ncs-$NCS_VERSION.yml
         - west update
         - west build --board capbot
     cache:
-        key: west-cache
+        key: west-cache-$NCS_VERSION
         paths:
         - deps/
     artifacts:
