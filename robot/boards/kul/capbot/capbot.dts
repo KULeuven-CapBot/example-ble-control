@@ -194,3 +194,39 @@
 &acl {
     status = "disabled";
 };
+
+&wdt {
+	status = "disabled";
+};
+
+&ppi {
+	status = "disabled";
+};
+
+&ficr {
+	status = "disabled";
+};
+
+&egu0 {
+	status = "disabled";
+};
+
+&egu1 {
+	status = "disabled";
+};
+
+&egu2 {
+	status = "disabled";
+};
+
+&egu3 {
+	status = "disabled";
+};
+
+&egu4 {
+	status = "disabled";
+};
+
+&egu5 {
+	status = "disabled";
+};
