@@ -6,9 +6,9 @@ build:
         ACCEPT_JLINK_LICENSE: 0         # JLink isn't needed for building
     script:
         - cd robot
-        - west init -l
+        - west init --local --manifest-file west-ncs2.7.0.yml
         - west update
-        - west build -b capbot
+        - west build --board capbot
     cache:
         key: west-cache
         paths:
