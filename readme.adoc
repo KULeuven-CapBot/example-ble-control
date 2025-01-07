@@ -106,10 +106,30 @@ s| Vcap
 
 The robot firmware is based on link:https://github.com/nrfconnect/sdk-zephyr[Nordic's flavor of zephyr] and their link:https://docs.nordicsemi.com/bundle/ncs-latest[nRF Connect SDK].
 
+=== Building
+
+TODO: build guide
+
+After a successful build, the file `robot/build/zephyr/zephyr.hex` should be present.
+
+=== Flashing
+
+[IMPORTANT]
+We use link:https://pyocd.io/[pyOCD] for interacting with the robot's hardware. Make sure it's successfully installed (i.e. `pyocd list` reports the robot's DAPLink interface)
+
+.Flash zephyr binary with our application to the robot
+[source, console]
+----
+$ pyocd flash -t nrf52840 robot/build/zephyr/zephyr.hex
+0000539 I Loading ████████████████████████████████████████████████████████/robot/build/zephyr/zephyr.hex [load_cmd]
+[==================================================] 100%
+0009467 I Erased 159744 bytes (39 sectors), programmed 159744 bytes (39 pages), skipped 0 bytes (0 pages) at 17.65 kB/s [loader]
+----
+
 == Command line interface
 
 The controller CLI is a python program.
-It connects to CapBots over BLE and uses the <<rcs-gatt, Custom GATT service>> described above.
+It connects to CapBots over BLE and uses the <<rcs-gatt, custom GATT service>> described above.
 It relies on link:https://bleak.readthedocs.io/en/latest/[bleak] for managing these connections.
 
 === Getting started
@@ -147,3 +167,6 @@ options:
   -v, --verbose         show verbose output
   -a ADDRESS, --address ADDRESS
 ----
+
+[TIP]
+If there's no robot address specified the `sense` and `drive` commands will scan for available robots and continue with the first one found.
