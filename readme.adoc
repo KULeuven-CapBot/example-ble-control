@@ -12,6 +12,7 @@ This repo can be divided in two main parts:
 * A link:./controller/[command line interface] that connects to this GATT server (i.e. the BLE central)
 
 == Robot Control Service
+[[rcs-gatt]]
 
 A custom GATT service is used for interacting with a robot.
 This service has UUID `00000030-0000-1000-8000-00805f9b34fb` and supports the following characteristics:
@@ -107,10 +108,14 @@ The robot firmware is based on link:https://github.com/nrfconnect/sdk-zephyr[Nor
 
 == Command line interface
 
-The controller CLI is written in python and connects to CapBots over BLE.
-It relies on the link:https://bleak.readthedocs.io/en/latest/[bleak] package for managing these connections.
+The controller CLI is a python program.
+It connects to CapBots over BLE and uses the <<rcs-gatt, Custom GATT service>> described above.
+It relies on link:https://bleak.readthedocs.io/en/latest/[bleak] for managing these connections.
 
-.Create a python virtual environment
+=== Getting started
+
+1. Create a python virtual environment
++
 [source, console]
 ----
 $ python -m venv venv
@@ -118,16 +123,27 @@ $ source venv/bin/activate
 $ pip install --upgrade pip
 ----
 
-.Install dependencies
+2. Install dependencies
++
 [source, console]
 ----
 $ pip install -r controller/requirements.txt
 ----
 
-.Use CapBot controller CLI
+3. Use BLE based CapBot controller
++
 [source, console]
 ----
-$ ./controller/capbotctl.py scan
-$ ./controller/capbotctl.py sense
-$ ./controller/capbotctl.py drive 40 40 40 40 -d 1000
+$ ./controller/capbotctl.py -h
+usage: capbotctl.py [-h] [-v] [-a ADDRESS] {scan,sense,drive} ...
+
+BLE based controller for CapBots
+
+positional arguments:
+  {scan,sense,drive}    subcommand help
+
+options:
+  -h, --help            show this help message and exit
+  -v, --verbose         show verbose output
+  -a ADDRESS, --address ADDRESS
 ----
