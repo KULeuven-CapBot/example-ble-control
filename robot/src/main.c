@@ -65,18 +65,6 @@ static const struct bt_data rsp_data[] = {
     BT_DATA(BT_DATA_NAME_COMPLETE, BLE_DEVICE_NAME, BLE_DEVICE_NAME_LEN),
 };
 
-/** @brief On BLE connected callback */
-static void on_connected(struct bt_conn *conn, uint8_t err);
-
-/** @brief On BLE disconnected callback */
-static void on_disconnected(struct bt_conn *conn, uint8_t reason);
-
-/** @brief BLE connection callbacks */
-struct bt_conn_cb connection_cb = {
-    .connected = on_connected,
-    .disconnected = on_disconnected,
-};
-
 // -----------------------------------------------------------------------------
 // System initialization
 // -----------------------------------------------------------------------------
@@ -114,7 +102,6 @@ int sys_init(void)
         update_ble_status(BLE_ERROR);
         return -1;
     }
-    bt_conn_cb_register(&connection_cb);
     LOG_INF("Bluetooth initialization done");
 
     if (bt_le_adv_start(BT_LE_ADV_CONN, adv_data, ARRAY_SIZE(adv_data), rsp_data, ARRAY_SIZE(rsp_data)))
@@ -165,6 +152,12 @@ static void on_disconnected(struct bt_conn *conn, uint8_t reason)
     update_ble_status(BLE_ADVERTISING);
     LOG_INF("BLE advertising started");
 }
+
+/** @brief BLE connection callbacks */
+BT_CONN_CB_DEFINE(connection_cb) = {
+    .connected = on_connected,
+    .disconnected = on_disconnected,
+};
 
 // -----------------------------------------------------------------------------
 // Status led task
