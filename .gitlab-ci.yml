@@ -11,7 +11,7 @@ build:
         - cd robot
         - west init --local --manifest-file west-ncs-$NCS_VERSION.yml
         - west update
-        - west build --board capbot
+        - west build --no-sysbuild --board capbot
     cache:
         key: west-cache-$NCS_VERSION
         paths:
