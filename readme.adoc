@@ -109,3 +109,25 @@ The robot firmware is based on link:https://github.com/nrfconnect/sdk-zephyr[Nor
 
 The controller CLI is written in python and connects to CapBots over BLE.
 It relies on the link:https://bleak.readthedocs.io/en/latest/[bleak] package for managing these connections.
+
+.Create a python virtual environment
+[source, console]
+----
+$ python -m venv venv
+$ source venv/bin/activate
+$ pip install --upgrade pip
+----
+
+.Install dependencies
+[source, console]
+----
+$ pip install -r controller/requirements.txt
+----
+
+.Use CapBot controller CLI
+[source, console]
+----
+$ ./controller/capbotctl.py scan
+$ ./controller/capbotctl.py sense
+$ ./controller/capbotctl.py drive 40 40 40 40 -d 1000
+----
