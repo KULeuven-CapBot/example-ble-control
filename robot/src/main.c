@@ -53,16 +53,22 @@ void update_ble_status(ble_status_t status)
 #define BLE_DEVICE_NAME "CapBot"
 #define BLE_DEVICE_NAME_LEN (sizeof(BLE_DEVICE_NAME) - 1)
 
+/** @brief BLE Advertisement parameters */
+static const struct bt_le_adv_param adv_param = BT_LE_ADV_PARAM_INIT(
+    BT_LE_ADV_OPT_CONNECTABLE,
+    BT_GAP_ADV_FAST_INT_MIN_2,
+    BT_GAP_ADV_FAST_INT_MAX_2,
+    NULL);
+
 /** @brief BLE Advertisement data */
 static const struct bt_data adv_data[] = {
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-    BT_DATA(BT_DATA_NAME_COMPLETE, BLE_DEVICE_NAME, BLE_DEVICE_NAME_LEN),
 };
 
 /** @brief BLE Scan response data */
 static const struct bt_data rsp_data[] = {
-    BT_DATA_BYTES(BT_DATA_UUID128_SOME, BT_UUID_RCS_VAL),
     BT_DATA(BT_DATA_NAME_COMPLETE, BLE_DEVICE_NAME, BLE_DEVICE_NAME_LEN),
+    BT_DATA_BYTES(BT_DATA_UUID128_SOME, BT_UUID_RCS_VAL),
 };
 
 // -----------------------------------------------------------------------------
@@ -104,7 +110,7 @@ int sys_init(void)
     }
     LOG_INF("Bluetooth initialization done");
 
-    if (bt_le_adv_start(BT_LE_ADV_CONN, adv_data, ARRAY_SIZE(adv_data), rsp_data, ARRAY_SIZE(rsp_data)))
+    if (bt_le_adv_start(&adv_param, adv_data, ARRAY_SIZE(adv_data), rsp_data, ARRAY_SIZE(rsp_data)))
     {
         LOG_ERR("BLE advertising failed to start");
         update_ble_status(BLE_ERROR);
