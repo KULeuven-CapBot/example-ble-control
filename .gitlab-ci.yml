@@ -1,5 +1,6 @@
 variables:
-  PYPROJECT: controller/pyproject.toml
+  CONTROLLER: ./controller
+  FIRWARE: ./robot
 
 build:
     stage: build
@@ -30,18 +31,18 @@ mypy:
     stage: test
     before_script:
         - python -m pip install --upgrade pip
-        - pip install '.'
+        - pip install $CONTROLLER
         - pip install mypy
     script:
-        - mypy --config-file $PYPROJECT $(git ls-files '*.py')
+        - mypy --config-file $CONTROLLER/pyproject.toml $(git ls-files '*.py')
 
 ruff:
     image: python:latest
     stage: test
     before_script:
         - python -m pip install --upgrade pip
-        - pip install '.'
+        - pip install $CONTROLLER
         - pip install ruff
     script:
-        - ruff --config $PYPROJECT check $(git ls-files '*.py')
+        - ruff --config $CONTROLLER/pyproject.toml check $(git ls-files '*.py')
     allow_failure: true
