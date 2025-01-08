@@ -327,9 +327,7 @@ class Command(StrEnum):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="BLE based controller for CapBots")
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="show verbose output"
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="show verbose output")
     parser.add_argument("-a", "--address", type=str, required=False)
     subparsers = parser.add_subparsers(help="subcommand help", dest="command")
 

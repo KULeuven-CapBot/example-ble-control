@@ -5,7 +5,7 @@ dependencies = ["bleak == 0.22.3"]
 
 [tool.ruff]
 show-fixes = true
-line-length = 79
+line-length = 99
 indent-width = 4
 
 [tool.ruff.lint]
