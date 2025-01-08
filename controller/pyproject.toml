@@ -1,27 +1,9 @@
 [project]
-name = "capbot-ble-control"
+name = "capbotctl"
 version = "0.1a"
-description = "Control CapBots using Bluetooth Low Energy"
-authors = [{ name = "Lowie Deferme", email = "lowie.deferme@kuleuven.be" }]
-
-requires-python = ">=3.8"
 dependencies = ["bleak >= 0.22.3"]
 
-[project.optional-dependencies]
-dev-ctl = [
-    "ruff", # Python formatter/linter
-    "mypy", # Python type checker
-]
-dev-robot = [
-    "west",  # Zephyr's meta tool
-    "pyocd", # Flashing and debugging tool
-]
-
-[tool.setuptools]
-py-modules = []
-
 [tool.ruff]
-exclude = ["venv"]
 show-fixes = true
 line-length = 79
 indent-width = 4

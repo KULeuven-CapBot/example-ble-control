@@ -1,3 +1,6 @@
+variables:
+  PYPROJECT: controller/pyproject.toml
+
 build:
     stage: build
     parallel:
@@ -30,7 +33,7 @@ mypy:
         - pip install '.'
         - pip install mypy
     script:
-        - mypy $(git ls-files '*.py')
+        - mypy --config-file $PYPROJECT $(git ls-files '*.py')
 
 ruff:
     image: python:latest
@@ -40,5 +43,5 @@ ruff:
         - pip install '.'
         - pip install ruff
     script:
-        - ruff check $(git ls-files '*.py')
+        - ruff --config $PYPROJECT check $(git ls-files '*.py')
     allow_failure: true
