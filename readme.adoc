@@ -108,9 +108,99 @@ The robot firmware is based on link:https://github.com/nrfconnect/sdk-zephyr[Nor
 
 === Building
 
-TODO: build guide
+==== Using nordic's docker container
 
-After a successful build, the file `robot/build/zephyr/zephyr.hex` should be present.
+TODO: Update instructions for windows/macos
+
+1. Start toolchain container (deny the SEGGER license to skip JLink installation)
++
+[source, console]
+----
+$ docker run --privileged --rm -it -v .:/firmware ghcr.io/nrfconnect/sdk-nrf-toolchain:v2.7.0
+----
+
+2. Navigate to project directory
++
+[source, console]
+----
+$ cd /firmware/robot/
+$ ls
+CMakeLists.txt  boards  build  capbot.overlay  inc  prj.conf  src  west-ncs-v2.7.0.yml  west-ncs-v2.8.0.yml  west-ncs-v2.9.0.yml
+----
+
+3. Initialize west workspace
++
+[source, console]
+----
+$ west init --local --mf west-ncs-v2.7.0.yml
+=== Initializing from existing manifest repository robot
+--- Creating /firmware/.west and local configuration file
+=== Initialized. Now run "west update" inside /firmware.
+$ west update
+=== updating nrf (deps/nrf):
+--- nrf: initializing
+Initialized empty Git repository in /firmware/deps/nrf/.git/
+...
+=== updating zephyr (deps/zephyr):
+--- zephyr: initializing
+Initialized empty Git repository in /firmware/deps/zephyr/.git/
+...
+----
+
+4. Build robot firmware
++
+[source, console]
+----
+$ west build --no-sysbuild --board capbot
+Loading Zephyr default modules (Zephyr base).
+-- Application: /firmware/robot
+-- CMake version: 3.21.0
+-- Using NCS Toolchain 2.6.20240605.1004412633878 for building. (/opt/ncs/toolchains/e9dba88316/cmake)
+-- Found Python3: /opt/ncs/toolchains/e9dba88316/usr/local/bin/python3 (found suitable version "3.9.18", minimum required is "3.8") found components: Interpreter
+-- Cache files will be written to: /firmware/deps/zephyr/.cache
+-- Zephyr version: 3.6.99 (/firmware/deps/zephyr)
+-- Found west (found suitable version "1.2.0", minimum required is "0.14.0")
+-- Board: capbot, qualifiers: nrf52840
+-- Found host-tools: zephyr 0.16.5 (/opt/ncs/toolchains/e9dba88316/opt/zephyr-sdk)
+-- Found toolchain: zephyr 0.16.5 (/opt/ncs/toolchains/e9dba88316/opt/zephyr-sdk)
+-- Found Dtc: /opt/ncs/toolchains/e9dba88316/usr/local/bin/dtc (found suitable version "1.5.0", minimum required is "1.4.6")
+-- Found BOARD.dts: /firmware/robot/boards/kul/capbot/capbot.dts
+-- Found devicetree overlay: /firmware/robot/capbot.overlay
+-- Generated zephyr.dts: /firmware/robot/build/zephyr/zephyr.dts
+-- Generated devicetree_generated.h: /firmware/robot/build/zephyr/include/generated/devicetree_generated.h
+-- Including generated dts.cmake file: /firmware/robot/build/zephyr/dts.cmake
+/firmware/robot/build/zephyr/zephyr.dts:61.25-66.5: Warning (unique_unit_address_if_enabled): /soc/clock@40000000: duplicate unit-address (also used in node /soc/power@40000000)
+Parsing /firmware/deps/zephyr/Kconfig
+Loaded configuration '/firmware/robot/boards/kul/capbot/capbot_defconfig'
+Merged configuration '/firmware/robot/prj.conf'
+Configuration saved to '/firmware/robot/build/zephyr/.config'
+Kconfig header saved to '/firmware/robot/build/zephyr/include/generated/autoconf.h'
+-- Found GnuLd: /opt/ncs/toolchains/e9dba88316/opt/zephyr-sdk/arm-zephyr-eabi/arm-zephyr-eabi/bin/ld.bfd (found version "2.38")
+-- The C compiler identification is GNU 12.2.0
+-- The CXX compiler identification is GNU 12.2.0
+-- The ASM compiler identification is GNU
+-- Found assembler: /opt/ncs/toolchains/e9dba88316/opt/zephyr-sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /firmware/robot/build
+-- west build: building application
+[1/197] Preparing syscall dependency handling
+
+[5/197] Generating include/generated/version.h
+-- Zephyr version: 3.6.99 (/firmware/deps/zephyr), build: v3.6.99-ncs2
+[197/197] Linking C executable zephyr/zephyr.elf
+Memory region         Used Size  Region Size  %age Used
+           FLASH:      159884 B         1 MB     15.25%
+             RAM:       31328 B       256 KB     11.95%
+        IDT_LIST:          0 GB        32 KB      0.00%
+Generating files from /firmware/robot/build/zephyr/zephyr.elf for board: capbot
+----
+
+[CAUTION]
+After a successful build, the file `./robot/build/zephyr/zephyr.hex` should be present.
+
+[TIP]
+Once the west workspace is created and dependencies are present in `./deps`, step 3 should be skipped for *rebuilding*.
 
 === Flashing
 
