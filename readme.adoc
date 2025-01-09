@@ -128,7 +128,7 @@ $ ls
 CMakeLists.txt  boards  build  capbot.overlay  inc  prj.conf  src  west-ncs-v2.7.0.yml  west-ncs-v2.8.0.yml  west-ncs-v2.9.0.yml
 ----
 
-3. Initialize west workspace
+3. Initialize west workspace and get dependencies
 +
 [source, console]
 ----
@@ -144,6 +144,18 @@ Initialized empty Git repository in /firmware/deps/nrf/.git/
 === updating zephyr (deps/zephyr):
 --- zephyr: initializing
 Initialized empty Git repository in /firmware/deps/zephyr/.git/
+...
+=== updating nrfxlib (deps/nrfxlib):
+--- nrfxlib: initializing
+Initialized empty Git repository in /firmware/deps/nrfxlib/.git/
+...
+=== updating cmsis (deps/modules/hal/cmsis):
+--- cmsis: initializing
+Initialized empty Git repository in /firmware/deps/modules/hal/cmsis/.git/
+...
+=== updating hal_nordic (deps/modules/hal/nordic):
+--- hal_nordic: initializing
+Initialized empty Git repository in /firmware/deps/modules/hal/nordic/.git/
 ...
 ----
 
@@ -196,11 +208,11 @@ Memory region         Used Size  Region Size  %age Used
 Generating files from /firmware/robot/build/zephyr/zephyr.elf for board: capbot
 ----
 
-[CAUTION]
+[IMPORTANT]
 After a successful build, the file `./robot/build/zephyr/zephyr.hex` should be present.
 
 [TIP]
-Once the west workspace is created and dependencies are present in `./deps`, step 3 should be skipped for *rebuilding*.
+Once the west workspace is created and dependencies are present in `./deps`, step 3 is no longer required for *rebuilding*.
 
 === Flashing
 
