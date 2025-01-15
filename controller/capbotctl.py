@@ -113,30 +113,24 @@ class CapBotSensors:
 
 async def scan() -> List[BLEDevice]:
     """Scan for BLE devices and filter out robots."""
-    devices: List[BLEDevice] = await BleakScanner(
-        service_uuids=[CapBotUuid.SERVICE]
-    ).discover(timeout=5)
+    devices: List[BLEDevice] = await BleakScanner.discover(
+        timeout=5, service_uuids=[CapBotUuid.SERVICE]
+    )
     bots: List[BLEDevice] = []
     for device in devices:
         log.info(f"Found device: {device.address} - {device.name}")
-        if await is_robot(device):
-            bots.append(device)
+        bots.append(device)
     return bots
 
 
 async def find(addr: str) -> Optional[BLEDevice]:
     """Search for a robot with given address."""
-    device = await BleakScanner(
-        service_uuids=[CapBotUuid.SERVICE]
-    ).find_device_by_address(addr, timeout=5)
-    if device is not None and await is_robot(device):
+    device = await BleakScanner.find_device_by_address(
+        addr, timeout=5, service_uuids=[CapBotUuid.SERVICE]
+    )
+    if device is not None:
         return device
     return None
-
-
-async def is_robot(device: BLEDevice) -> bool:
-    """Determine if a device is a robot."""
-    return CapBotUuid.SERVICE in device.details["props"]["UUIDs"]
 
 
 async def connect(device: BLEDevice) -> BleakClient:
@@ -198,9 +192,7 @@ async def read_speed(client: BleakClient) -> CapBotMotors:
     return dat
 
 
-async def set_motors(
-    client: BleakClient, speeds: CapBotMotors, duration: int
-) -> None:
+async def set_motors(client: BleakClient, speeds: CapBotMotors, duration: int) -> None:
     """Set the target speed of the robot's wheels."""
     if not client.is_connected:
         await client.connect()
@@ -263,6 +255,7 @@ def cli_sense(addr: Optional[str]) -> NoReturn:
             sensed.voltage = await read_voltage(client)
             sensed.angles = await read_angle(client)
             sensed.speeds = await read_speed(client)
+            await client.disconnect()
             return sensed
 
         log.error("No suitable robots found")
@@ -277,14 +270,10 @@ def cli_sense(addr: Optional[str]) -> NoReturn:
         sys.exit(1)
 
 
-def cli_drive(
-    addr: Optional[str], speeds: List[int], duration: int
-) -> NoReturn:
+def cli_drive(addr: Optional[str], speeds: List[int], duration: int) -> NoReturn:
     """Drive a robot."""
 
-    async def drive(
-        addr: Optional[str], speeds: CapBotMotors, duration: int
-    ) -> None:
+    async def drive(addr: Optional[str], speeds: CapBotMotors, duration: int) -> None:
         # Determine robot device
         if addr is not None:
             # Search for bot with given address
@@ -301,6 +290,7 @@ def cli_drive(
         if robot is not None:
             client = await connect(robot)
             await set_motors(client, speeds, duration)
+            await client.disconnect()
         else:
             log.error("No suitable robots found")
 
@@ -339,9 +329,7 @@ class Command(StrEnum):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="BLE based controller for CapBots")
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="show verbose output"
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="show verbose output")
     parser.add_argument("-a", "--address", type=str, required=False)
     subparsers = parser.add_subparsers(help="subcommand help", dest="command")
 
