@@ -213,7 +213,7 @@ async def set_motors(
     )
     log.info(f"Raw drive data: {raw.hex()}")
     assert len(raw) == 8
-    await client.write_gatt_char(CapBotUuid.DRIVE, raw, False)
+    await client.write_gatt_char(CapBotUuid.DRIVE, raw, True)
 
 
 # -------------------------------------------------------------------------- #
@@ -263,6 +263,7 @@ def cli_sense(addr: Optional[str]) -> NoReturn:
             sensed.voltage = await read_voltage(client)
             sensed.angles = await read_angle(client)
             sensed.speeds = await read_speed(client)
+            await client.disconnect()
             return sensed
 
         log.error("No suitable robots found")
@@ -301,6 +302,7 @@ def cli_drive(
         if robot is not None:
             client = await connect(robot)
             await set_motors(client, speeds, duration)
+            await client.disconnect()
         else:
             log.error("No suitable robots found")
 

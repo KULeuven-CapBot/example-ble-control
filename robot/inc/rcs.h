@@ -1,6 +1,7 @@
 /**
  * @file robot_control_service.h
  * @author Lowie Deferme <lowie.deferme@kuleuven.be>
+ * @brief Definitions for the Robot Control Service
  * @date 2025-01-02
  */
 
@@ -25,8 +26,7 @@
 #define BT_UUID_RCS_DRIVE BT_UUID_DECLARE_128(BT_UUID_RCS_DRIVE_VAL)
 
 /** @brief Data format for motor drive characteristic */
-typedef struct
-{
+typedef struct {
     /** @brief Target speed (RPM) for front left motor */
     int8_t fl;
     /** @brief Target speed (RPM) for front right motor */
@@ -47,8 +47,7 @@ typedef struct
 #define BT_UUID_RCS_SPEED BT_UUID_DECLARE_128(BT_UUID_RCS_SPEED_VAL)
 
 /** @brief Data format for motor speed characteristic */
-typedef struct
-{
+typedef struct {
     /** @brief Measured speed (RPM) of front left motor */
     int8_t fl;
     /** @brief Measured speed (RPM) of front right motor */
@@ -67,8 +66,7 @@ typedef struct
 #define BT_UUID_RCS_ANGLE BT_UUID_DECLARE_128(BT_UUID_RCS_ANGLE_VAL)
 
 /** @brief Data format for motor angle characteristic */
-typedef struct
-{
+typedef struct {
     /** @brief Measured angle (degrees) of front left motor */
     int32_t fl;
     /** @brief Measured angle (degrees) of front right motor */
@@ -87,8 +85,7 @@ typedef struct
 #define BT_UUID_RCS_VOLT BT_UUID_DECLARE_128(BT_UUID_RCS_VOLT_VAL)
 
 /** @brief Data format for voltage measurement characteristic */
-typedef struct
-{
+typedef struct {
     /** @brief Measured voltage (mV) */
     uint16_t volt;
 } rcs_volt_t;

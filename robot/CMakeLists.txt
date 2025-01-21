@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.20.0)
-list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
 project(peripheral)
 
 include_directories(inc)
-target_sources(app PRIVATE src/main.c src/capbot_io.c src/capbot_adc.c src/capbot_motor.c src/robot_control_service.c)
+target_sources(app PRIVATE src/main.c src/rcs.c)
