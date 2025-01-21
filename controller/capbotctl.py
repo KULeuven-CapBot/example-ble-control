@@ -205,7 +205,7 @@ async def set_motors(client: BleakClient, speeds: CapBotMotors, duration: int) -
     )
     log.info(f"Raw drive data: {raw.hex()}")
     assert len(raw) == 8
-    await client.write_gatt_char(CapBotUuid.DRIVE, raw, False)
+    await client.write_gatt_char(CapBotUuid.DRIVE, raw, True)
 
 
 # -------------------------------------------------------------------------- #

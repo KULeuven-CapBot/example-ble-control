@@ -1,6 +1,7 @@
 /**
  * @file robot_control_service.h
  * @author Lowie Deferme <lowie.deferme@kuleuven.be>
+ * @brief Definitions for the Robot Control Service
  * @date 2025-01-02
  */
 

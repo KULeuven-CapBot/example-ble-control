@@ -4,7 +4,7 @@ manifest:
     version: 0.13
 
     projects:
-        # The nRF Connect SDK
+        # Nordic's nRF Connect SDK
         - name: nrf
           url: https://github.com/nrfconnect/sdk-nrf
           revision: v2.7.0
@@ -16,6 +16,16 @@ manifest:
                   - hal_nordic
                   - nrfxlib
                   - zephyr
+        # CapBot's zephyr board definitions
+        - name: capbot-zephyr-boards
+          url: https://gitlab.kuleuven.be/distrinet/taskforces/nes/freebot/zephyr-boards
+          revision: 33674e22
+          path: deps/capbot/boards
+        # CapBot's zephyr library
+        - name: capbot-zephyr-library
+          url: https://gitlab.kuleuven.be/distrinet/taskforces/nes/freebot/zephyr-library
+          revision: zephyr-module # TODO: checkout specific version once stable
+          path: deps/capbot/lib
 
     self:
         path: robot

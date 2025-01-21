@@ -1,0 +1,15 @@
+# We'll use defaults from the LLVM style as a starting point
+BasedOnStyle: LLVM
+
+# Block-level indentation uses spaces
+IndentWidth: 4
+UseTab: Never
+# Unix-style line endings
+LineEnding: LF
+# All files end with a newline character
+InsertNewlineAtEOF: true
+# No trailing spaces on any lines
+# Break line after 100 columns
+ColumnLimit: 100
+# Start braces on new line
+BreakBeforeBraces: Allman

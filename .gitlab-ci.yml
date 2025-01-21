@@ -1,8 +1,8 @@
 variables:
-  CONTROLLER: ./controller
-  FIRWARE: ./robot
+    CONTROLLER_DIR: ./controller
+    FIRMWARE_DIR: ./robot
 
-build:
+build-firmware:
     stage: build
     parallel:
         matrix:
@@ -10,39 +10,54 @@ build:
     image: ghcr.io/nrfconnect/sdk-nrf-toolchain:$NCS_VERSION
     variables:
         DEBIAN_FRONTEND: noninteractive # CI is a non-interactive shell
-        ACCEPT_JLINK_LICENSE: 0         # JLink isn't needed for building
-    script:
-        - cd robot
+        ACCEPT_JLINK_LICENSE: 0 # JLink isn't needed for building
+    before_script:
+        - cd $FIRMWARE_DIR
         - west init --local --manifest-file west-ncs-$NCS_VERSION.yml
         - west update
+    script:
         - west build --no-sysbuild --board capbot
     cache:
-        key: west-cache-$NCS_VERSION
-        paths:
-        - deps/
+        - key: west-$NCS_VERSION
+          paths:
+              - deps/
     artifacts:
-      when: on_success
-      expire_in: "1 week"
-      paths:
-        - robot/build/
+        when: on_success
+        expire_in: "1 week"
+        paths:
+            - $FIRMWARE_DIR/build/
 
-mypy:
+check-format:
+    image: ubuntu:latest
+    variables:
+        CLANG_FMT: clang-format-18
+    stage: test
+    before_script:
+        - apt-get update
+        - apt-get install git $CLANG_FMT -y
+    script:
+        - cd $FIRMWARE_DIR
+        - $CLANG_FMT --version
+        - $CLANG_FMT --dry-run --Werror $(git ls-files '*.c') $(git ls-files '*.h')
+    allow_failure: true
+
+check-mypy:
     image: python:latest
     stage: test
     before_script:
         - python -m pip install --upgrade pip
-        - pip install $CONTROLLER
+        - pip install $CONTROLLER_DIR
         - pip install mypy
     script:
-        - mypy --config-file $CONTROLLER/pyproject.toml $(git ls-files '*.py')
+        - mypy --config-file $CONTROLLER_DIR/pyproject.toml $(git ls-files '*.py')
 
-ruff:
+check-ruff:
     image: python:latest
     stage: test
     before_script:
         - python -m pip install --upgrade pip
-        - pip install $CONTROLLER
+        - pip install $CONTROLLER_DIR
         - pip install ruff
     script:
-        - ruff --config $CONTROLLER/pyproject.toml check $(git ls-files '*.py')
+        - ruff --config $CONTROLLER_DIR/pyproject.toml check $(git ls-files '*.py')
     allow_failure: true
