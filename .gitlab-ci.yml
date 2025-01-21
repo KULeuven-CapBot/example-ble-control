@@ -27,6 +27,20 @@ build-firmware:
         paths:
             - $FIRMWARE_DIR/build/
 
+check-format:
+    image: ubuntu:latest
+    variables:
+        CLANG_FMT: clang-format-18
+    stage: test
+    before_script:
+        - apt-get update
+        - apt-get install git $CLANG_FMT -y
+    script:
+        - cd $FIRMWARE_DIR
+        - $CLANG_FMT --version
+        - $CLANG_FMT --dry-run --Werror $(git ls-files '*.c') $(git ls-files '*.h')
+    allow_failure: true
+
 check-mypy:
     image: python:latest
     stage: test

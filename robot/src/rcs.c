@@ -5,8 +5,8 @@
  * @date 2025-01-02
  */
 
-#include <zephyr/logging/log.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/logging/log.h>
 
 #include "capbot.h"
 #include "rcs.h"
@@ -31,10 +31,8 @@ static struct
 
 void t_drive_timeout_ep(void *, void *, void *)
 {
-    LOG_DBG("Setting motors: {%d, %d, %d, %d}",
-            t_drive_timeout_data.mfl_rpm,
-            t_drive_timeout_data.mfr_rpm,
-            t_drive_timeout_data.mbl_rpm,
+    LOG_DBG("Setting motors: {%d, %d, %d, %d}", t_drive_timeout_data.mfl_rpm,
+            t_drive_timeout_data.mfr_rpm, t_drive_timeout_data.mbl_rpm,
             t_drive_timeout_data.mbr_rpm);
     cb_set_rpm(CB_M_FRONT_LEFT, t_drive_timeout_data.mfl_rpm);
     cb_set_rpm(CB_M_FRONT_RIGHT, t_drive_timeout_data.mfr_rpm);
