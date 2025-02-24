@@ -19,7 +19,7 @@ manifest:
         # CapBot's zephyr board definitions
         - name: capbot-zephyr-boards
           url: https://gitlab.kuleuven.be/distrinet/taskforces/nes/freebot/zephyr-boards
-          revision: 33674e22
+          revision: v2.0
           path: deps/capbot/boards
         # CapBot's zephyr library
         - name: capbot-zephyr-library
