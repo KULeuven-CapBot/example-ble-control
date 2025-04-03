@@ -326,7 +326,7 @@ class Command(StrEnum):
             case unknown:  # Default: matches everything not specified above
                 assert_never(unknown)
 
-def main():
+def main() -> None:
     parser = ArgumentParser(description="BLE based controller for CapBots")
     parser.add_argument("-v", "--verbose", action="store_true", help="show verbose output")
     parser.add_argument("-a", "--address", type=str, required=False)
