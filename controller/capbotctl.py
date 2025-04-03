@@ -326,8 +326,7 @@ class Command(StrEnum):
             case unknown:  # Default: matches everything not specified above
                 assert_never(unknown)
 
-
-if __name__ == "__main__":
+def main():
     parser = ArgumentParser(description="BLE based controller for CapBots")
     parser.add_argument("-v", "--verbose", action="store_true", help="show verbose output")
     parser.add_argument("-a", "--address", type=str, required=False)
@@ -355,3 +354,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     Command(args.command).exec(args)
+
+if __name__ == "__main__":
+    main()

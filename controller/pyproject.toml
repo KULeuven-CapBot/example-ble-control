@@ -1,7 +1,11 @@
 [project]
-name = "capbotctl"
+name = "cbctl"
 version = "0.1a"
 dependencies = ["bleak == 0.22.3"]
+requires-python = ">= 3.11"
+
+[project.scripts]
+cbctl = "capbotctl:main"
 
 [tool.ruff]
 show-fixes = true
