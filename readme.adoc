@@ -243,21 +243,15 @@ It relies on link:https://bleak.readthedocs.io/en/latest/[bleak] for managing th
 $ python -m venv venv
 $ source venv/bin/activate
 $ pip install --upgrade pip
+$ pip install ./controller
 ----
 
-2. Install dependencies
+2. Use BLE based CapBot controller
 +
 [source, console]
 ----
-$ pip install -r controller/requirements.txt
-----
-
-3. Use BLE based CapBot controller
-+
-[source, console]
-----
-$ ./controller/capbotctl.py -h
-usage: capbotctl.py [-h] [-v] [-a ADDRESS] {scan,sense,drive} ...
+$ cbctl -h
+usage: cbctl [-h] [-v] [-a ADDRESS] {scan,sense,drive} ...
 
 BLE based controller for CapBots
 
